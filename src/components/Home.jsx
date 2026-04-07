@@ -11,9 +11,15 @@ function Home() {
 
   useEffect(() => {
     const getData = async () => {
-      const response = await getAllInvoice();
-      setInvoices(response.data);
+      try {
+        const response = await getAllInvoice();
+        setInvoices(Array.isArray(response?.data) ? response.data : []);
+      } catch (error) {
+        console.error("Failed to fetch invoices:", error.message);
+        setInvoices([]);
+      }
     };
+
     getData();
   }, [addInvoice]);
 
@@ -22,9 +28,13 @@ function Home() {
   };
 
   const removeInvoice = async (id) => {
-    await deleteInvoice(id);
-    const updatedInvoice = invoices.filter((invoice) => invoice.id !== id);
-    setInvoices(updatedInvoice);
+    try {
+      await deleteInvoice(id);
+      const updatedInvoice = invoices.filter((invoice) => invoice.id !== id);
+      setInvoices(updatedInvoice);
+    } catch (error) {
+      console.error("Failed to delete invoice:", error.message);
+    }
   };
 
   return (
