@@ -3,29 +3,39 @@ import Header from "./Header";
 import AddInvoice from "./AddInvoice";
 import { useEffect, useState } from "react";
 import Invoices from "./Invoices";
-import { getAllInvoice, deleteInvoice } from "../Services/api";
+import CustomerManager from "./CustomerManager";
+import { deleteInvoice, getAllCustomers, getAllInvoice } from "../Services/api";
 
 function Home() {
   const [addInvoice, setAddInvoice] = useState(false);
+  const [showCustomers, setShowCustomers] = useState(true);
   const [invoices, setInvoices] = useState([]);
+  const [customers, setCustomers] = useState([]);
+
+  const loadInvoices = async () => {
+    try {
+      const response = await getAllInvoice();
+      setInvoices(Array.isArray(response?.data) ? response.data : []);
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error.message);
+      setInvoices([]);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      const response = await getAllCustomers();
+      setCustomers(Array.isArray(response?.data) ? response.data : []);
+    } catch (error) {
+      console.error("Failed to fetch customers:", error.message);
+      setCustomers([]);
+    }
+  };
 
   useEffect(() => {
-    const getData = async () => {
-      try {
-        const response = await getAllInvoice();
-        setInvoices(Array.isArray(response?.data) ? response.data : []);
-      } catch (error) {
-        console.error("Failed to fetch invoices:", error.message);
-        setInvoices([]);
-      }
-    };
-
-    getData();
-  }, [addInvoice]);
-
-  const toggleInvoice = () => {
-    setAddInvoice(true);
-  };
+    loadInvoices();
+    loadCustomers();
+  }, []);
 
   const removeInvoice = async (id) => {
     try {
@@ -40,18 +50,36 @@ function Home() {
   return (
     <>
       <Header />
-      <Box style={{ margin: 20 }}>
-        <Typography>Pending Invoices</Typography>
-        {!addInvoice && (
-          <Button
-            variant="outlined"
-            onClick={() => toggleInvoice()}
-            style={{ marginTop: 15 }}
-          >
-            Add Invoice
+      <Box sx={{ margin: 2.5 }}>
+        <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Pending Invoices</Typography>
+        <Box sx={{ display: "flex", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
+          {!addInvoice && (
+            <Button variant="outlined" onClick={() => setAddInvoice(true)}>
+              Add Invoice
+            </Button>
+          )}
+          {addInvoice && (
+            <Button variant="outlined" onClick={() => setAddInvoice(false)}>
+              Hide Invoice Form
+            </Button>
+          )}
+          <Button variant="outlined" onClick={() => setShowCustomers((prev) => !prev)}>
+            {showCustomers ? "Hide Customers" : "Manage Customers"}
           </Button>
+        </Box>
+
+        {showCustomers && (
+          <CustomerManager customers={customers} onCustomersChanged={loadCustomers} />
         )}
-        {addInvoice && <AddInvoice setAddInvoice={setAddInvoice} />}
+
+        {addInvoice && (
+          <AddInvoice
+            setAddInvoice={setAddInvoice}
+            customers={customers}
+            onSaved={loadInvoices}
+          />
+        )}
+
         <Box>
           <Invoices invoices={invoices} removeInvoice={removeInvoice} />
         </Box>

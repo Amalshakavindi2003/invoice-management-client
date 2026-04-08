@@ -28,3 +28,35 @@ export async function deleteInvoice(id) {
     throw new Error(getErrorMessage(error));
   }
 }
+
+export async function saveCustomer(payload) {
+  try {
+    return await axios.post(`${API_URL}/customer`, payload);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function getAllCustomers() {
+  try {
+    return await axios.get(`${API_URL}/customer`);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function updateCustomer(id, payload) {
+  try {
+    return await axios.put(`${API_URL}/customer/${id}`, payload);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function removeCustomer(id) {
+  try {
+    return await axios.delete(`${API_URL}/customer/${id}`);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
