@@ -1,11 +1,19 @@
-import Home from './components/Home';
-import './index.css';
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import Home from "./components/Home";
+import Header from "./components/Header";
+import CustomerInvoicePortal from "./components/CustomerInvoicePortal";
+import "./index.css";
 
 function App() {
   return (
-    <div className="App">
-      <Home />
-    </div>
+    <BrowserRouter>
+      <Header />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/my-invoices" element={<CustomerInvoicePortal />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
