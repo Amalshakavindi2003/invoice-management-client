@@ -2,7 +2,6 @@ import { Box, Button, Typography } from "@mui/material";
 import Header from "./Header";
 import AddInvoice from "./AddInvoice";
 import { useEffect, useState } from "react";
-import Invoices from "./Invoices";
 import CustomerManager from "./CustomerManager";
 import { deleteInvoice, getAllCustomers, getAllInvoice } from "../Services/api";
 
@@ -37,13 +36,12 @@ function Home() {
     loadCustomers();
   }, []);
 
-  const removeInvoice = async (id) => {
+  const markInvoiceDone = async (invoiceId) => {
     try {
-      await deleteInvoice(id);
-      const updatedInvoice = invoices.filter((invoice) => invoice.id !== id);
-      setInvoices(updatedInvoice);
+      await deleteInvoice(invoiceId);
+      await loadInvoices();
     } catch (error) {
-      console.error("Failed to delete invoice:", error.message);
+      console.error("Failed to mark invoice as done:", error.message);
     }
   };
 
@@ -68,10 +66,6 @@ function Home() {
           </Button>
         </Box>
 
-        {showCustomers && (
-          <CustomerManager customers={customers} onCustomersChanged={loadCustomers} />
-        )}
-
         {addInvoice && (
           <AddInvoice
             setAddInvoice={setAddInvoice}
@@ -80,9 +74,15 @@ function Home() {
           />
         )}
 
-        <Box>
-          <Invoices invoices={invoices} removeInvoice={removeInvoice} />
-        </Box>
+        {showCustomers && (
+          <CustomerManager
+            customers={customers}
+            invoices={invoices}
+            onCustomersChanged={loadCustomers}
+            onInvoicesChanged={loadInvoices}
+            onMarkInvoiceDone={markInvoiceDone}
+          />
+        )}
       </Box>
     </>
   );

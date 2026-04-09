@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import {
+  Alert,
   Box,
   Button,
   Table,
@@ -12,6 +13,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { removeCustomer, saveCustomer, updateCustomer } from "../Services/api";
+import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
 
 const Wrapper = styled(Box)(() => ({
   marginTop: 20,
@@ -32,6 +34,20 @@ const FormRow = styled(Box)(() => ({
   },
 }));
 
+const StyledTable = styled(Table)(() => ({
+  marginTop: 16,
+  "& > thead > tr > th": {
+    background: "#9C27B0",
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  "& > tbody > tr > td": {
+    fontSize: 14,
+    verticalAlign: "top",
+  },
+}));
+
 const EmptyCustomer = {
   name: "",
   email: "",
@@ -39,10 +55,75 @@ const EmptyCustomer = {
   address: "",
 };
 
-function CustomerManager({ customers, onCustomersChanged }) {
+const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
+
+function CustomerManager({
+  customers,
+  invoices,
+  onCustomersChanged,
+  onInvoicesChanged,
+  onMarkInvoiceDone,
+}) {
   const [form, setForm] = useState(EmptyCustomer);
   const [editingId, setEditingId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const invoiceMap = useMemo(() => {
+    const map = new Map();
+    const customerByName = new Map();
+
+    (Array.isArray(customers) ? customers : []).forEach((customer) => {
+      if (customer?.name) {
+        customerByName.set(customer.name.trim().toLowerCase(), customer.id);
+      }
+    });
+
+    const resolveCustomerKey = (invoice) => {
+      const nestedId = invoice?.customer?.id;
+      if (nestedId !== undefined && nestedId !== null && nestedId !== "") {
+        return String(nestedId);
+      }
+
+      const rootCustomerId = invoice?.customerId;
+      if (rootCustomerId !== undefined && rootCustomerId !== null && rootCustomerId !== "") {
+        return String(rootCustomerId);
+      }
+
+      const vendorName =
+        typeof invoice?.vendor === "string" ? invoice.vendor.trim().toLowerCase() : "";
+      if (vendorName && customerByName.has(vendorName)) {
+        return String(customerByName.get(vendorName));
+      }
+
+      return null;
+    };
+
+    (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
+      const customerKey = resolveCustomerKey(invoice);
+      if (!customerKey) {
+        return;
+      }
+
+      const existing = map.get(customerKey) || [];
+      existing.push(invoice);
+      map.set(customerKey, existing);
+    });
+
+    map.forEach((customerInvoices, key) => {
+      customerInvoices.sort((a, b) => {
+        const dateA = Date.parse(a.date || "") || 0;
+        const dateB = Date.parse(b.date || "") || 0;
+        if (dateA !== dateB) {
+          return dateB - dateA;
+        }
+        return (b.id || 0) - (a.id || 0);
+      });
+      map.set(key, customerInvoices);
+    });
+
+    return map;
+  }, [customers, invoices]);
 
   const sortedCustomers = useMemo(
     () => [...customers].sort((a, b) => a.name.localeCompare(b.name)),
@@ -107,7 +188,10 @@ function CustomerManager({ customers, onCustomersChanged }) {
   const deleteCustomerById = async (id) => {
     try {
       await removeCustomer(id);
-      await onCustomersChanged();
+      await Promise.all([
+        onCustomersChanged(),
+        typeof onInvoicesChanged === "function" ? onInvoicesChanged() : Promise.resolve(),
+      ]);
       if (editingId === id) {
         resetForm();
       }
@@ -120,7 +204,7 @@ function CustomerManager({ customers, onCustomersChanged }) {
     <Wrapper>
       <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Customer Management</Typography>
       <Typography sx={{ color: "#666", mt: 0.5 }}>
-        Create and manage customers. Every invoice is linked to one customer.
+        Single table view: customer data with invoice status and details.
       </Typography>
 
       <FormRow>
@@ -169,50 +253,96 @@ function CustomerManager({ customers, onCustomersChanged }) {
       </FormRow>
 
       {errorMessage && (
-        <Typography color="error" sx={{ mb: 1 }}>
+        <Alert severity="error" sx={{ mb: 1 }}>
           {errorMessage}
-        </Typography>
+        </Alert>
       )}
 
-      <Table size="small">
+      <StyledTable size="small">
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Phone</TableCell>
             <TableCell>Address</TableCell>
-            <TableCell>Action</TableCell>
+            <TableCell>Invoices</TableCell>
+            <TableCell>Latest Date</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Total</TableCell>
+            <TableCell>Invoice Action</TableCell>
+            <TableCell>Customer Action</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {sortedCustomers.map((customer) => (
-            <TableRow key={customer.id}>
-              <TableCell>{customer.name}</TableCell>
-              <TableCell>{customer.email}</TableCell>
-              <TableCell>{customer.phone}</TableCell>
-              <TableCell>{customer.address}</TableCell>
-              <TableCell>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button variant="outlined" onClick={() => startEdit(customer)}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => deleteCustomerById(customer.id)}
-                  >
-                    Delete
-                  </Button>
-                </Box>
-              </TableCell>
-            </TableRow>
-          ))}
+          {sortedCustomers.map((customer) => {
+            const customerInvoices = invoiceMap.get(String(customer.id)) || [];
+            const latestInvoice = customerInvoices[0] || null;
+
+            return (
+              <TableRow key={customer.id}>
+                <TableCell>{customer.name}</TableCell>
+                <TableCell>{customer.email}</TableCell>
+                <TableCell>{customer.phone}</TableCell>
+                <TableCell>{customer.address}</TableCell>
+                <TableCell>{customerInvoices.length}</TableCell>
+                <TableCell>{latestInvoice?.date || "No Invoice"}</TableCell>
+                <TableCell>{latestInvoice?.action || "No Invoice"}</TableCell>
+                <TableCell>
+                  {latestInvoice
+                    ? formatCurrency(latestInvoice.totalAmount || latestInvoice.amount)
+                    : "No Invoice"}
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={!latestInvoice}
+                      onClick={() => setSelectedInvoice(latestInvoice)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="success"
+                      disabled={!latestInvoice}
+                      onClick={() => latestInvoice && onMarkInvoiceDone(latestInvoice.id)}
+                    >
+                      Mark Done
+                    </Button>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button variant="outlined" size="small" onClick={() => startEdit(customer)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      onClick={() => deleteCustomerById(customer.id)}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
-      </Table>
+      </StyledTable>
 
       {!sortedCustomers.length && (
         <Typography sx={{ mt: 1.5, color: "#666" }}>No customers added yet.</Typography>
       )}
+
+      <InvoiceDetailsDialog
+        invoice={selectedInvoice}
+        open={Boolean(selectedInvoice)}
+        onClose={() => setSelectedInvoice(null)}
+      />
     </Wrapper>
   );
 }

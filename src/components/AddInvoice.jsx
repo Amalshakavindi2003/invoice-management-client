@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { saveInvoice } from "../Services/api";
 
 const Component = styled(Box)(() => ({
@@ -65,6 +65,12 @@ const toNumber = (value) => {
 function AddInvoice({ setAddInvoice, customers, onSaved }) {
   const [invoice, setInvoice] = useState(defaultObj);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!invoice.customerId && Array.isArray(customers) && customers.length > 0) {
+      setInvoice((prev) => ({ ...prev, customerId: String(customers[0].id) }));
+    }
+  }, [customers, invoice.customerId]);
 
   const calculation = useMemo(() => {
     const subtotal = invoice.lineItems.reduce((sum, item) => {
@@ -136,24 +142,27 @@ function AddInvoice({ setAddInvoice, customers, onSaved }) {
         return;
       }
 
-      const lineItems = invoice.lineItems
-        .filter((item) => item.name.trim())
-        .map((item) => ({
-          name: item.name.trim(),
-          quantity: Math.max(0, toNumber(item.quantity)),
-          unitPrice: Math.max(0, toNumber(item.unitPrice)),
-          taxRate: Math.max(0, toNumber(item.taxRate)),
-        }));
+      const normalizedItems = invoice.lineItems.map((item) => ({
+        name: item.name.trim(),
+        quantity: Math.max(0, toNumber(item.quantity)),
+        unitPrice: Math.max(0, toNumber(item.unitPrice)),
+        taxRate: Math.max(0, toNumber(item.taxRate)),
+      }));
 
-      if (lineItems.length === 0) {
-        setErrorMessage("Add at least one valid line item.");
+      if (normalizedItems.some((item) => !item.name)) {
+        setErrorMessage("Each line item must have a product/service name.");
+        return;
+      }
+
+      if (normalizedItems.some((item) => item.quantity <= 0 || item.unitPrice <= 0)) {
+        setErrorMessage("Quantity and Unit Price must be greater than 0 for all items.");
         return;
       }
 
       await saveInvoice({
         customer: { id: Number(invoice.customerId) },
         vendor: selectedCustomer?.name || "",
-        product: lineItems[0]?.name || "",
+        product: normalizedItems[0]?.name || "",
         amount: Math.round(calculation.total),
         date: invoice.date,
         action: "pending",
@@ -161,7 +170,7 @@ function AddInvoice({ setAddInvoice, customers, onSaved }) {
         subtotal: calculation.subtotal,
         taxTotal: calculation.tax,
         totalAmount: calculation.total,
-        lineItems,
+        lineItems: normalizedItems,
       });
 
       if (typeof onSaved === "function") {
