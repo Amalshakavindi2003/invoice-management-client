@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { saveInvoice } from "../Services/api";
+import { VALID_INVOICE_STATUSES, normalizeInvoiceStatus, toTitleCase } from "../utils/invoiceStatus";
 
 const Component = styled(Box)(() => ({
   marginTop: 20,
@@ -49,11 +50,21 @@ const createLineItem = () => ({
   taxRate: 0,
 });
 
+const addDays = (dateValue, days) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
 const defaultObj = {
   customerId: "",
   date: "",
+  dueDate: "",
   discount: 0,
-  action: "pending",
+  action: "draft",
   lineItems: [createLineItem()],
 };
 
@@ -101,9 +112,18 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
     (customer) => Number(customer.id) === Number(invoice.customerId)
   );
 
-  const onInvoiceValueChange = (e) => {
+  const onInvoiceValueChange = (event) => {
+    const { name, value } = event.target;
     setErrorMessage("");
-    setInvoice((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+    setInvoice((prev) => {
+      if (name === "date") {
+        const nextDueDate = prev.dueDate || addDays(value, 14);
+        return { ...prev, date: value, dueDate: nextDueDate };
+      }
+
+      return { ...prev, [name]: value };
+    });
   };
 
   const onLineItemChange = (index, field, value) => {
@@ -147,6 +167,18 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
         return;
       }
 
+      if (!invoice.dueDate) {
+        setErrorMessage("Please select due date.");
+        return;
+      }
+
+      const invoiceDateMs = Date.parse(invoice.date);
+      const dueDateMs = Date.parse(invoice.dueDate);
+      if (Number.isNaN(invoiceDateMs) || Number.isNaN(dueDateMs)) {
+        setErrorMessage("Invoice and due dates must be valid.");
+        return;
+      }
+
       const normalizedItems = invoice.lineItems.map((item) => ({
         name: item.name.trim(),
         quantity: Math.max(0, toNumber(item.quantity)),
@@ -170,7 +202,8 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
         product: normalizedItems[0]?.name || "",
         amount: Math.round(calculation.total),
         date: invoice.date,
-        action: "pending",
+        dueDate: invoice.dueDate,
+        action: normalizeInvoiceStatus(invoice.action),
         discount: calculation.discount,
         subtotal: calculation.subtotal,
         taxTotal: calculation.tax,
@@ -229,12 +262,37 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
           type="date"
           variant="standard"
           name="date"
+          label="Invoice Date"
+          InputLabelProps={{ shrink: true }}
         />
+        <TextField
+          onChange={onInvoiceValueChange}
+          value={invoice.dueDate}
+          type="date"
+          variant="standard"
+          name="dueDate"
+          label="Due Date"
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          select
+          onChange={onInvoiceValueChange}
+          value={invoice.action}
+          variant="standard"
+          name="action"
+          label="Initial Status"
+        >
+          {VALID_INVOICE_STATUSES.filter((status) => status !== "overdue").map((status) => (
+            <MenuItem key={status} value={status}>
+              {toTitleCase(status)}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           onChange={onInvoiceValueChange}
           value={invoice.discount}
           type="number"
-          placeholder="Discount"
+          label="Discount"
           variant="standard"
           name="discount"
         />
@@ -245,27 +303,27 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
         <ItemRow key={`line-item-${index}`}>
           <TextField
             value={item.name}
-            onChange={(e) => onLineItemChange(index, "name", e.target.value)}
+            onChange={(event) => onLineItemChange(index, "name", event.target.value)}
             variant="standard"
             placeholder="Product / Service"
           />
           <TextField
             value={item.quantity}
-            onChange={(e) => onLineItemChange(index, "quantity", e.target.value)}
+            onChange={(event) => onLineItemChange(index, "quantity", event.target.value)}
             variant="standard"
             type="number"
             placeholder="Qty"
           />
           <TextField
             value={item.unitPrice}
-            onChange={(e) => onLineItemChange(index, "unitPrice", e.target.value)}
+            onChange={(event) => onLineItemChange(index, "unitPrice", event.target.value)}
             variant="standard"
             type="number"
             placeholder="Unit Price"
           />
           <TextField
             value={item.taxRate}
-            onChange={(e) => onLineItemChange(index, "taxRate", e.target.value)}
+            onChange={(event) => onLineItemChange(index, "taxRate", event.target.value)}
             variant="standard"
             type="number"
             placeholder="Tax %"

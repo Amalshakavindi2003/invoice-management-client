@@ -15,6 +15,12 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { removeCustomer, saveCustomer, updateCustomer } from "../Services/api";
+import {
+  deriveInvoiceStatus,
+  normalizeInvoiceStatus,
+  statusColor,
+  toTitleCase,
+} from "../utils/invoiceStatus";
 import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
 
 const Wrapper = styled(Box)(() => ({
@@ -73,7 +79,7 @@ const statusLabels = {
   all: "All Customers",
   withInvoices: "With Invoices",
   noInvoices: "No Invoices",
-  pending: "Pending Invoices",
+  open: "Open Invoices",
 };
 
 function CustomerManager({
@@ -81,7 +87,6 @@ function CustomerManager({
   invoices,
   onCustomersChanged,
   onInvoicesChanged,
-  onMarkInvoiceDone,
   onCreateInvoiceForCustomer,
 }) {
   const [form, setForm] = useState(EmptyCustomer);
@@ -132,15 +137,16 @@ function CustomerManager({
     return sortedCustomers.map((customer) => {
       const customerInvoices = invoiceMap.get(String(customer.id)) || [];
       const latestInvoice = customerInvoices[0] || null;
-      const hasPending = customerInvoices.some((invoice) =>
-        String(invoice.action || "pending").toLowerCase().includes("pending")
-      );
+      const hasOpen = customerInvoices.some((invoice) => {
+        const status = normalizeInvoiceStatus(deriveInvoiceStatus(invoice));
+        return status === "draft" || status === "sent" || status === "overdue";
+      });
 
       return {
         customer,
         latestInvoice,
         invoiceCount: customerInvoices.length,
-        hasPending,
+        hasOpen,
       };
     });
   }, [sortedCustomers, invoiceMap]);
@@ -148,7 +154,7 @@ function CustomerManager({
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return enrichedCustomers.filter(({ customer, invoiceCount, hasPending }) => {
+    return enrichedCustomers.filter(({ customer, invoiceCount, hasOpen }) => {
       const text = [
         customer.referenceCode,
         customer.name,
@@ -173,8 +179,8 @@ function CustomerManager({
         return invoiceCount === 0;
       }
 
-      if (statusFilter === "pending") {
-        return hasPending;
+      if (statusFilter === "open") {
+        return hasOpen;
       }
 
       return true;
@@ -298,7 +304,7 @@ function CustomerManager({
     <Wrapper>
       <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Customer Management</Typography>
       <Typography sx={{ color: "#666", mt: 0.5 }}>
-        Customer-first workflow: maintain customer data and manage all linked invoices.
+        Customer-first workflow: maintain customer data and manage linked invoices.
       </Typography>
 
       <FormRow>
@@ -390,15 +396,24 @@ function CustomerManager({
             <TableCell>Address</TableCell>
             <TableCell>Invoices</TableCell>
             <TableCell>Latest Date</TableCell>
+            <TableCell>Due Date</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Total</TableCell>
+            <TableCell>Paid</TableCell>
+            <TableCell>Balance</TableCell>
             <TableCell>Invoice Action</TableCell>
             <TableCell>Customer Action</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {filteredCustomers.map(({ customer, latestInvoice, invoiceCount, hasPending }) => {
+          {filteredCustomers.map(({ customer, latestInvoice, invoiceCount }) => {
             const isSelected = activeCustomerData?.customer?.id === customer.id;
+            const invoiceStatus = latestInvoice ? deriveInvoiceStatus(latestInvoice) : null;
+            const normalizedStatus = normalizeInvoiceStatus(invoiceStatus);
+            const total = Number(latestInvoice?.totalAmount || latestInvoice?.amount || 0);
+            const paid = Number(latestInvoice?.paidAmount || 0);
+            const balance = Math.max(0, total - paid);
+            const isOverdue = normalizedStatus === "overdue";
 
             return (
               <TableRow
@@ -406,7 +421,10 @@ function CustomerManager({
                 hover
                 selected={isSelected}
                 onClick={() => setSelectedCustomerId(customer.id)}
-                sx={{ cursor: "pointer" }}
+                sx={{
+                  cursor: "pointer",
+                  backgroundColor: isOverdue ? "#fff4f3" : undefined,
+                }}
               >
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
@@ -430,21 +448,24 @@ function CustomerManager({
                 <TableCell>{customer.address}</TableCell>
                 <TableCell>{invoiceCount}</TableCell>
                 <TableCell>{latestInvoice?.date || "No Invoice"}</TableCell>
+                <TableCell>{latestInvoice?.dueDate || "-"}</TableCell>
                 <TableCell>
                   {latestInvoice ? (
-                    <Chip
-                      size="small"
-                      color={hasPending ? "warning" : "success"}
-                      label={latestInvoice.action || "pending"}
-                    />
+                    <Chip size="small" color={statusColor(normalizedStatus)} label={toTitleCase(normalizedStatus)} />
                   ) : (
                     "No Invoice"
                   )}
                 </TableCell>
+                <TableCell>{latestInvoice ? formatCurrency(total) : "No Invoice"}</TableCell>
+                <TableCell>{latestInvoice ? formatCurrency(paid) : "No Invoice"}</TableCell>
                 <TableCell>
-                  {latestInvoice
-                    ? formatCurrency(latestInvoice.totalAmount || latestInvoice.amount)
-                    : "No Invoice"}
+                  {latestInvoice ? (
+                    <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 600 }}>
+                      {formatCurrency(balance)}
+                    </Typography>
+                  ) : (
+                    "No Invoice"
+                  )}
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -458,20 +479,6 @@ function CustomerManager({
                       }}
                     >
                       View
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="success"
-                      disabled={!latestInvoice}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (latestInvoice) {
-                          onMarkInvoiceDone(latestInvoice.id);
-                        }
-                      }}
-                    >
-                      Mark Done
                     </Button>
                     <Button
                       variant="outlined"

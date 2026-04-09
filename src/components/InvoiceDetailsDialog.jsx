@@ -1,12 +1,14 @@
 import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
 
 const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
 
@@ -26,6 +28,10 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
 
   const customer = invoice.customer || {};
   const lineItems = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+  const status = deriveInvoiceStatus(invoice);
+  const total = Number(invoice.totalAmount || invoice.amount || 0);
+  const paid = Number(invoice.paidAmount || 0);
+  const balance = Math.max(0, total - paid);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -43,7 +49,11 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
           <Box sx={{ p: 2, border: "1px solid #e5e7eb", borderRadius: 2 }}>
             <Typography sx={{ fontWeight: 700, mb: 1 }}>Invoice Info</Typography>
             <InfoRow label="Date" value={invoice.date || "-"} />
-            <InfoRow label="Status" value={invoice.action || "pending"} />
+            <InfoRow label="Due Date" value={invoice.dueDate || "-"} />
+            <InfoRow
+              label="Status"
+              value={<Chip size="small" color={statusColor(status)} label={toTitleCase(status)} />}
+            />
             <InfoRow label="Invoice ID" value={invoice.id} />
           </Box>
         </Box>
@@ -91,9 +101,16 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
           <Typography>Subtotal: {formatCurrency(invoice.subtotal || invoice.amount)}</Typography>
           <Typography>Tax: {formatCurrency(invoice.taxTotal)}</Typography>
           <Typography>Discount: {formatCurrency(invoice.discount)}</Typography>
-          <Typography sx={{ fontWeight: 700 }}>
-            Total: {formatCurrency(invoice.totalAmount || invoice.amount)}
+          <Typography>Total: {formatCurrency(total)}</Typography>
+          <Typography>Paid Amount: {formatCurrency(paid)}</Typography>
+          <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 700 }}>
+            Balance: {formatCurrency(balance)}
           </Typography>
+          <Typography>Paid Date: {invoice.paidDate || "-"}</Typography>
+          <Typography>Payment Method: {invoice.paymentMethod || "-"}</Typography>
+          <Typography>Reference: {invoice.paymentReference || "-"}</Typography>
+          <Typography>Notes: {invoice.paymentNotes || "-"}</Typography>
+          <Typography>Last Reminder: {invoice.reminderSentAt || "-"}</Typography>
         </Box>
       </DialogContent>
       <DialogActions>

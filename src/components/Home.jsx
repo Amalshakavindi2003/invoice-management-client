@@ -1,8 +1,8 @@
 import { Box, Button, Typography } from "@mui/material";
-import AddInvoice from "./AddInvoice";
 import { useEffect, useState } from "react";
+import AddInvoice from "./AddInvoice";
 import CustomerManager from "./CustomerManager";
-import { deleteInvoice, getAllCustomers, getAllInvoice } from "../Services/api";
+import { getAllCustomers, getAllInvoice } from "../Services/api";
 
 function Home() {
   const [addInvoice, setAddInvoice] = useState(false);
@@ -36,15 +36,6 @@ function Home() {
     loadCustomers();
   }, []);
 
-  const markInvoiceDone = async (invoiceId) => {
-    try {
-      await deleteInvoice(invoiceId);
-      await loadInvoices();
-    } catch (error) {
-      console.error("Failed to mark invoice as done:", error.message);
-    }
-  };
-
   const openInvoiceForCustomer = (customerId = null) => {
     setInvoiceCustomerId(customerId);
     setAddInvoice(true);
@@ -58,7 +49,7 @@ function Home() {
 
   return (
     <Box sx={{ margin: 2.5 }}>
-      <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Pending Invoices</Typography>
+      <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Invoice Operations</Typography>
       <Box sx={{ display: "flex", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
         {!addInvoice && (
           <Button variant="outlined" onClick={() => openInvoiceForCustomer()}>
@@ -96,7 +87,6 @@ function Home() {
           invoices={invoices}
           onCustomersChanged={loadCustomers}
           onInvoicesChanged={loadInvoices}
-          onMarkInvoiceDone={markInvoiceDone}
           onCreateInvoiceForCustomer={openInvoiceForCustomer}
         />
       )}

@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Paper,
   Table,
   TableBody,
@@ -14,6 +15,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
+import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
 import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
 
 const Wrapper = styled(Box)(() => ({
@@ -209,29 +211,49 @@ function CustomerInvoicePortal() {
                 <TableRow>
                   <TableCell>Invoice #</TableCell>
                   <TableCell>Date</TableCell>
+                  <TableCell>Due Date</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Total</TableCell>
+                  <TableCell>Paid</TableCell>
+                  <TableCell>Balance</TableCell>
                   <TableCell>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>{invoice.id}</TableCell>
-                    <TableCell>{invoice.date || "-"}</TableCell>
-                    <TableCell>{invoice.action || "pending"}</TableCell>
-                    <TableCell>{formatCurrency(invoice.totalAmount || invoice.amount)}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => setSelectedInvoice(invoice)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sortedInvoices.map((invoice) => {
+                  const status = deriveInvoiceStatus(invoice);
+                  const total = Number(invoice.totalAmount || invoice.amount || 0);
+                  const paid = Number(invoice.paidAmount || 0);
+                  const balance = Math.max(0, total - paid);
+                  const isOverdue = status === "overdue";
+
+                  return (
+                    <TableRow key={invoice.id} sx={{ backgroundColor: isOverdue ? "#fff4f3" : undefined }}>
+                      <TableCell>{invoice.id}</TableCell>
+                      <TableCell>{invoice.date || "-"}</TableCell>
+                      <TableCell>{invoice.dueDate || "-"}</TableCell>
+                      <TableCell>
+                        <Chip size="small" color={statusColor(status)} label={toTitleCase(status)} />
+                      </TableCell>
+                      <TableCell>{formatCurrency(total)}</TableCell>
+                      <TableCell>{formatCurrency(paid)}</TableCell>
+                      <TableCell>
+                        <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 600 }}>
+                          {formatCurrency(balance)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setSelectedInvoice(invoice)}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </StyledTable>
           )}
