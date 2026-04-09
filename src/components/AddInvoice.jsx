@@ -62,15 +62,20 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-function AddInvoice({ setAddInvoice, customers, onSaved }) {
+function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = null }) {
   const [invoice, setInvoice] = useState(defaultObj);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    if (initialCustomerId) {
+      setInvoice((prev) => ({ ...prev, customerId: String(initialCustomerId) }));
+      return;
+    }
+
     if (!invoice.customerId && Array.isArray(customers) && customers.length > 0) {
       setInvoice((prev) => ({ ...prev, customerId: String(customers[0].id) }));
     }
-  }, [customers, invoice.customerId]);
+  }, [customers, invoice.customerId, initialCustomerId]);
 
   const calculation = useMemo(() => {
     const subtotal = invoice.lineItems.reduce((sum, item) => {
@@ -197,6 +202,12 @@ function AddInvoice({ setAddInvoice, customers, onSaved }) {
     <Component>
       <Typography>Add Invoice</Typography>
 
+      {selectedCustomer && (
+        <Typography sx={{ fontSize: 14, color: "#555", mt: -1, mb: 2 }}>
+          Creating invoice for: {selectedCustomer.name} ({selectedCustomer.email})
+        </Typography>
+      )}
+
       <FormRow>
         <TextField
           select
@@ -265,7 +276,7 @@ function AddInvoice({ setAddInvoice, customers, onSaved }) {
         </ItemRow>
       ))}
 
-      <Box sx={{ display: "flex", gap: 1.5 }}>
+      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
         <Button onClick={addLineItem} variant="outlined">
           Add Line Item
         </Button>

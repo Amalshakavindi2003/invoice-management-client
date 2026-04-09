@@ -34,6 +34,7 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
           <Box sx={{ p: 2, border: "1px solid #e5e7eb", borderRadius: 2 }}>
             <Typography sx={{ fontWeight: 700, mb: 1 }}>Customer</Typography>
+            <Typography>Customer Ref: {customer.referenceCode || "-"}</Typography>
             <Typography>{customer.name || invoice.vendor || "-"}</Typography>
             <Typography>{customer.email || "-"}</Typography>
             <Typography>{customer.phone || "-"}</Typography>

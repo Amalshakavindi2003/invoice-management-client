@@ -3,6 +3,8 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -34,8 +36,18 @@ const FormRow = styled(Box)(() => ({
   },
 }));
 
+const ControlsRow = styled(Box)(() => ({
+  display: "grid",
+  gridTemplateColumns: "2fr 1fr",
+  gap: 12,
+  marginBottom: 12,
+  "@media (max-width: 900px)": {
+    gridTemplateColumns: "1fr",
+  },
+}));
+
 const StyledTable = styled(Table)(() => ({
-  marginTop: 16,
+  marginTop: 8,
   "& > thead > tr > th": {
     background: "#9C27B0",
     color: "#FFFFFF",
@@ -57,57 +69,43 @@ const EmptyCustomer = {
 
 const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
 
+const statusLabels = {
+  all: "All Customers",
+  withInvoices: "With Invoices",
+  noInvoices: "No Invoices",
+  pending: "Pending Invoices",
+};
+
 function CustomerManager({
   customers,
   invoices,
   onCustomersChanged,
   onInvoicesChanged,
   onMarkInvoiceDone,
+  onCreateInvoiceForCustomer,
 }) {
   const [form, setForm] = useState(EmptyCustomer);
   const [editingId, setEditingId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const invoiceMap = useMemo(() => {
     const map = new Map();
-    const customerByName = new Map();
-
-    (Array.isArray(customers) ? customers : []).forEach((customer) => {
-      if (customer?.name) {
-        customerByName.set(customer.name.trim().toLowerCase(), customer.id);
-      }
-    });
-
-    const resolveCustomerKey = (invoice) => {
-      const nestedId = invoice?.customer?.id;
-      if (nestedId !== undefined && nestedId !== null && nestedId !== "") {
-        return String(nestedId);
-      }
-
-      const rootCustomerId = invoice?.customerId;
-      if (rootCustomerId !== undefined && rootCustomerId !== null && rootCustomerId !== "") {
-        return String(rootCustomerId);
-      }
-
-      const vendorName =
-        typeof invoice?.vendor === "string" ? invoice.vendor.trim().toLowerCase() : "";
-      if (vendorName && customerByName.has(vendorName)) {
-        return String(customerByName.get(vendorName));
-      }
-
-      return null;
-    };
 
     (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
-      const customerKey = resolveCustomerKey(invoice);
-      if (!customerKey) {
+      const nestedId = invoice?.customer?.id;
+      if (nestedId === undefined || nestedId === null) {
         return;
       }
 
-      const existing = map.get(customerKey) || [];
+      const key = String(nestedId);
+      const existing = map.get(key) || [];
       existing.push(invoice);
-      map.set(customerKey, existing);
+      map.set(key, existing);
     });
 
     map.forEach((customerInvoices, key) => {
@@ -123,15 +121,74 @@ function CustomerManager({
     });
 
     return map;
-  }, [customers, invoices]);
+  }, [invoices]);
 
-  const sortedCustomers = useMemo(
-    () => [...customers].sort((a, b) => a.name.localeCompare(b.name)),
-    [customers]
-  );
+  const sortedCustomers = useMemo(() => {
+    const safeCustomers = Array.isArray(customers) ? customers : [];
+    return [...safeCustomers].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [customers]);
+
+  const enrichedCustomers = useMemo(() => {
+    return sortedCustomers.map((customer) => {
+      const customerInvoices = invoiceMap.get(String(customer.id)) || [];
+      const latestInvoice = customerInvoices[0] || null;
+      const hasPending = customerInvoices.some((invoice) =>
+        String(invoice.action || "pending").toLowerCase().includes("pending")
+      );
+
+      return {
+        customer,
+        latestInvoice,
+        invoiceCount: customerInvoices.length,
+        hasPending,
+      };
+    });
+  }, [sortedCustomers, invoiceMap]);
+
+  const filteredCustomers = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    return enrichedCustomers.filter(({ customer, invoiceCount, hasPending }) => {
+      const text = [
+        customer.referenceCode,
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.address,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !normalizedSearch || text.includes(normalizedSearch);
+      if (!matchesSearch) {
+        return false;
+      }
+
+      if (statusFilter === "withInvoices") {
+        return invoiceCount > 0;
+      }
+
+      if (statusFilter === "noInvoices") {
+        return invoiceCount === 0;
+      }
+
+      if (statusFilter === "pending") {
+        return hasPending;
+      }
+
+      return true;
+    });
+  }, [enrichedCustomers, searchValue, statusFilter]);
+
+  const activeCustomerData = useMemo(() => {
+    const activeId = selectedCustomerId || filteredCustomers[0]?.customer?.id;
+    return filteredCustomers.find(({ customer }) => customer.id === activeId) || null;
+  }, [filteredCustomers, selectedCustomerId]);
 
   const onChange = (event) => {
     setErrorMessage("");
+    setSuccessMessage("");
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   };
 
@@ -145,6 +202,17 @@ function CustomerManager({
       setErrorMessage("All customer fields are required.");
       return false;
     }
+
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      setErrorMessage("Please enter a valid email address.");
+      return false;
+    }
+
+    if (!/^[0-9+\-()\s]{7,20}$/.test(form.phone.trim())) {
+      setErrorMessage("Please enter a valid phone number.");
+      return false;
+    }
+
     return true;
   };
 
@@ -154,6 +222,7 @@ function CustomerManager({
         return;
       }
 
+      setSuccessMessage("");
       const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
@@ -169,6 +238,7 @@ function CustomerManager({
 
       await onCustomersChanged();
       resetForm();
+      setSuccessMessage(editingId ? "Customer updated successfully." : "Customer added successfully.");
     } catch (error) {
       setErrorMessage(error.message || "Customer operation failed.");
     }
@@ -176,7 +246,9 @@ function CustomerManager({
 
   const startEdit = (customer) => {
     setErrorMessage("");
+    setSuccessMessage("");
     setEditingId(customer.id);
+    setSelectedCustomerId(customer.id);
     setForm({
       name: customer.name || "",
       email: customer.email || "",
@@ -187,6 +259,7 @@ function CustomerManager({
 
   const deleteCustomerById = async (id) => {
     try {
+      setSuccessMessage("");
       await removeCustomer(id);
       await Promise.all([
         onCustomersChanged(),
@@ -195,8 +268,29 @@ function CustomerManager({
       if (editingId === id) {
         resetForm();
       }
+      if (selectedCustomerId === id) {
+        setSelectedCustomerId(null);
+      }
+      setSuccessMessage("Customer deleted successfully.");
     } catch (error) {
       setErrorMessage(error.message || "Unable to delete customer.");
+    }
+  };
+
+  const copyCustomerReference = async (referenceCode) => {
+    if (!referenceCode) {
+      setErrorMessage("Customer reference is not ready yet. Refresh and try again.");
+      return;
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(referenceCode));
+      }
+      setErrorMessage("");
+      setSuccessMessage(`Customer reference ${referenceCode} copied.`);
+    } catch (error) {
+      setErrorMessage("Could not copy customer reference. Please copy manually.");
     }
   };
 
@@ -204,7 +298,7 @@ function CustomerManager({
     <Wrapper>
       <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Customer Management</Typography>
       <Typography sx={{ color: "#666", mt: 0.5 }}>
-        Single table view: customer data with invoice status and details.
+        Customer-first workflow: maintain customer data and manage all linked invoices.
       </Typography>
 
       <FormRow>
@@ -252,15 +346,44 @@ function CustomerManager({
         </Box>
       </FormRow>
 
+      <ControlsRow>
+        <TextField
+          label="Search customers"
+          placeholder="Customer ref, name, email, phone, address"
+          size="small"
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
+        />
+        <TextField
+          select
+          label="Filter"
+          size="small"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          {Object.entries(statusLabels).map(([value, label]) => (
+            <MenuItem key={value} value={value}>
+              {label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </ControlsRow>
+
       {errorMessage && (
         <Alert severity="error" sx={{ mb: 1 }}>
           {errorMessage}
+        </Alert>
+      )}
+      {!errorMessage && successMessage && (
+        <Alert severity="success" sx={{ mb: 1 }}>
+          {successMessage}
         </Alert>
       )}
 
       <StyledTable size="small">
         <TableHead>
           <TableRow>
+            <TableCell>Customer Ref</TableCell>
             <TableCell>Name</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Phone</TableCell>
@@ -274,19 +397,50 @@ function CustomerManager({
           </TableRow>
         </TableHead>
         <TableBody>
-          {sortedCustomers.map((customer) => {
-            const customerInvoices = invoiceMap.get(String(customer.id)) || [];
-            const latestInvoice = customerInvoices[0] || null;
+          {filteredCustomers.map(({ customer, latestInvoice, invoiceCount, hasPending }) => {
+            const isSelected = activeCustomerData?.customer?.id === customer.id;
 
             return (
-              <TableRow key={customer.id}>
+              <TableRow
+                key={customer.id}
+                hover
+                selected={isSelected}
+                onClick={() => setSelectedCustomerId(customer.id)}
+                sx={{ cursor: "pointer" }}
+              >
+                <TableCell>
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                    <Typography sx={{ fontWeight: 600 }}>{customer.referenceCode || "Generating..."}</Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={!customer.referenceCode}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        copyCustomerReference(customer.referenceCode);
+                      }}
+                    >
+                      Copy Ref
+                    </Button>
+                  </Box>
+                </TableCell>
                 <TableCell>{customer.name}</TableCell>
                 <TableCell>{customer.email}</TableCell>
                 <TableCell>{customer.phone}</TableCell>
                 <TableCell>{customer.address}</TableCell>
-                <TableCell>{customerInvoices.length}</TableCell>
+                <TableCell>{invoiceCount}</TableCell>
                 <TableCell>{latestInvoice?.date || "No Invoice"}</TableCell>
-                <TableCell>{latestInvoice?.action || "No Invoice"}</TableCell>
+                <TableCell>
+                  {latestInvoice ? (
+                    <Chip
+                      size="small"
+                      color={hasPending ? "warning" : "success"}
+                      label={latestInvoice.action || "pending"}
+                    />
+                  ) : (
+                    "No Invoice"
+                  )}
+                </TableCell>
                 <TableCell>
                   {latestInvoice
                     ? formatCurrency(latestInvoice.totalAmount || latestInvoice.amount)
@@ -298,7 +452,10 @@ function CustomerManager({
                       variant="outlined"
                       size="small"
                       disabled={!latestInvoice}
-                      onClick={() => setSelectedInvoice(latestInvoice)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedInvoice(latestInvoice);
+                      }}
                     >
                       View
                     </Button>
@@ -307,22 +464,50 @@ function CustomerManager({
                       size="small"
                       color="success"
                       disabled={!latestInvoice}
-                      onClick={() => latestInvoice && onMarkInvoiceDone(latestInvoice.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (latestInvoice) {
+                          onMarkInvoiceDone(latestInvoice.id);
+                        }
+                      }}
                     >
                       Mark Done
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (typeof onCreateInvoiceForCustomer === "function") {
+                          onCreateInvoiceForCustomer(customer.id);
+                        }
+                      }}
+                    >
+                      Add Invoice
                     </Button>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                    <Button variant="outlined" size="small" onClick={() => startEdit(customer)}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEdit(customer);
+                      }}
+                    >
                       Edit
                     </Button>
                     <Button
                       variant="outlined"
                       size="small"
                       color="error"
-                      onClick={() => deleteCustomerById(customer.id)}
+                      disabled={invoiceCount > 0}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteCustomerById(customer.id);
+                      }}
                     >
                       Delete
                     </Button>
@@ -334,8 +519,8 @@ function CustomerManager({
         </TableBody>
       </StyledTable>
 
-      {!sortedCustomers.length && (
-        <Typography sx={{ mt: 1.5, color: "#666" }}>No customers added yet.</Typography>
+      {!filteredCustomers.length && (
+        <Typography sx={{ mt: 1.5, color: "#666" }}>No customers match current filters.</Typography>
       )}
 
       <InvoiceDetailsDialog

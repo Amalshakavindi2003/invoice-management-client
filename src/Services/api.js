@@ -1,13 +1,39 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080";
+const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:8080").replace(/\/+$/, "");
 
-const getErrorMessage = (error) =>
-  error?.response?.data?.message || error?.message || "Request failed";
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+const getErrorMessage = (error) => {
+  const responseData = error?.response?.data;
+
+  if (typeof responseData === "string" && responseData.trim()) {
+    return responseData;
+  }
+
+  if (responseData?.message) {
+    return responseData.message;
+  }
+
+  if (responseData?.error) {
+    return responseData.error;
+  }
+
+  if (error?.code === "ERR_NETWORK") {
+    return `Unable to reach the backend at ${API_URL}. Make sure the server is running and the URL is correct.`;
+  }
+
+  return error?.message || "Request failed";
+};
 
 export async function saveInvoice(payload) {
   try {
-    return await axios.post(`${API_URL}/invoice`, payload);
+    return await api.post("/invoice", payload);
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -15,7 +41,7 @@ export async function saveInvoice(payload) {
 
 export const getAllInvoice = async () => {
   try {
-    return await axios.get(`${API_URL}/invoice`);
+    return await api.get("/invoice");
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -23,7 +49,7 @@ export const getAllInvoice = async () => {
 
 export async function deleteInvoice(id) {
   try {
-    return await axios.delete(`${API_URL}/invoice/${id}`);
+    return await api.delete(`/invoice/${id}`);
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -31,7 +57,7 @@ export async function deleteInvoice(id) {
 
 export async function saveCustomer(payload) {
   try {
-    return await axios.post(`${API_URL}/customer`, payload);
+    return await api.post("/customer", payload);
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -39,7 +65,7 @@ export async function saveCustomer(payload) {
 
 export async function getAllCustomers() {
   try {
-    return await axios.get(`${API_URL}/customer`);
+    return await api.get("/customer");
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -47,7 +73,7 @@ export async function getAllCustomers() {
 
 export async function updateCustomer(id, payload) {
   try {
-    return await axios.put(`${API_URL}/customer/${id}`, payload);
+    return await api.put(`/customer/${id}`, payload);
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
@@ -55,7 +81,7 @@ export async function updateCustomer(id, payload) {
 
 export async function removeCustomer(id) {
   try {
-    return await axios.delete(`${API_URL}/customer/${id}`);
+    return await api.delete(`/customer/${id}`);
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
