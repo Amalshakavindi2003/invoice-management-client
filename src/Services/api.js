@@ -55,6 +55,30 @@ export async function deleteInvoice(id) {
   }
 }
 
+export async function updateInvoiceStatus(id, status) {
+  try {
+    return await api.put(`/invoice/${id}/status`, { status });
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function sendInvoiceReminder(id) {
+  try {
+    return await api.post(`/invoice/${id}/reminder`);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function recordInvoicePayment(id, payload) {
+  try {
+    return await api.post(`/invoice/${id}/payment`, payload);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
 export async function saveCustomer(payload) {
   try {
     return await api.post("/customer", payload);
