@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
 import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
+import { generateInvoicePDF } from "../utils/invoicePdf";
 import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
 
 const Wrapper = styled(Box)(() => ({
@@ -243,13 +244,45 @@ function CustomerInvoicePortal() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setSelectedInvoice(invoice)}
-                        >
-                          View Details
-                        </Button>
+                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setSelectedInvoice(invoice)}
+                          >
+                            View Details
+                          </Button>
+                          <button
+                            onClick={() =>
+                              generateInvoicePDF(invoice, {
+                                name: customer?.name || invoice?.customer?.name || "-",
+                                email: customer?.email || invoice?.customer?.email || "-",
+                                phone: customer?.phone || invoice?.customer?.phone || "-",
+                                address: customer?.address || invoice?.customer?.address || "-",
+                                customerRef:
+                                  customer?.referenceCode ||
+                                  customer?.customerRef ||
+                                  invoice?.customer?.referenceCode ||
+                                  "-",
+                              })
+                            }
+                            style={{
+                              background: "#6d28d9",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "6px 12px",
+                              fontWeight: "500",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            ⬇ Download PDF
+                          </button>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
