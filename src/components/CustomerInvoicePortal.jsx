@@ -1,61 +1,16 @@
-import styled from "@emotion/styled";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Chip, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
 import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
 import { generateInvoicePDF } from "../utils/invoicePdf";
 import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
 
-const Wrapper = styled(Box)(() => ({
-  margin: 20,
-}));
-
-const SearchCard = styled(Paper)(() => ({
-  padding: 16,
-  border: "1px solid #e5e7eb",
-  borderRadius: 8,
-  marginTop: 16,
-}));
-
-const SearchRow = styled(Box)(() => ({
-  display: "grid",
-  gridTemplateColumns: "2fr 1fr auto",
-  gap: 12,
-  alignItems: "end",
-  marginTop: 8,
-  "@media (max-width: 900px)": {
-    gridTemplateColumns: "1fr",
-  },
-}));
-
-const StyledTable = styled(Table)(() => ({
-  marginTop: 12,
-  "& > thead > tr > th": {
-    background: "#9C27B0",
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: 600,
-  },
-  "& > tbody > tr > td": {
-    fontSize: 14,
-    verticalAlign: "top",
-  },
-}));
-
-const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
+const formatDate = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 function CustomerInvoicePortal() {
   const [customerReference, setCustomerReference] = useState("");
@@ -146,151 +101,470 @@ function CustomerInvoicePortal() {
     }
   };
 
+  const customerInitials = (customer?.name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <Wrapper>
-      <Typography sx={{ fontSize: 24, fontWeight: 700 }}>My Invoice Details</Typography>
-      <Typography sx={{ color: "#666", mt: 0.5 }}>
-        Secure customer view to check invoices using your customer reference.
-      </Typography>
+    <Box sx={{ minHeight: "100vh", background: "#f8fafc", pb: 4 }}>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)",
+          padding: "40px 32px 48px",
+          marginBottom: "-24px",
+        }}
+      >
+        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+          <h1
+            style={{
+              color: "#fff",
+              fontSize: "26px",
+              fontWeight: "700",
+              margin: "0 0 6px",
+            }}
+          >
+            My Invoice Details
+          </h1>
+          <p style={{ color: "#c4b5fd", fontSize: "14px", margin: 0 }}>View and download your invoices securely</p>
+        </div>
+      </div>
 
-      <SearchCard elevation={0}>
-        <Typography sx={{ fontWeight: 600 }}>Find your invoices</Typography>
-        <Typography sx={{ color: "#666", fontSize: 13, mt: 0.5 }}>
-          You can get your customer reference from the admin/customer support team or from a previous invoice.
-        </Typography>
+      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 16px" }}>
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "16px",
+            padding: "28px 28px",
+            boxShadow: "0 4px 24px rgba(109,40,217,0.12)",
+            border: "0.5px solid #ede9fe",
+            marginBottom: "24px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 4px",
+              color: "#1f2937",
+            }}
+          >
+            Find your invoices
+          </h2>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#6b7280",
+              margin: "0 0 20px",
+            }}
+          >
+            Enter your customer reference to access your invoices
+          </p>
 
-        <SearchRow>
-          <TextField
-            label="Customer Reference"
-            placeholder="CUS-000001"
-            value={customerReference}
-            onChange={(event) => setCustomerReference(event.target.value)}
-            size="small"
-          />
-          <TextField
-            label="Last 4 digits of phone (optional)"
-            placeholder="1403"
-            value={phoneLast4}
-            onChange={(event) => setPhoneLast4(event.target.value)}
-            size="small"
-            inputProps={{ maxLength: 4 }}
-          />
-          <Button variant="contained" onClick={findMyInvoices} disabled={loading}>
-            {loading ? "Searching..." : "View My Invoices"}
-          </Button>
-        </SearchRow>
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <TextField sx={{ flex: "1 1 260px" }}
+              label="Customer Reference"
+              placeholder="CUS-000001"
+              value={customerReference}
+              onChange={(event) => setCustomerReference(event.target.value)}
+              size="small"
+              fullWidth
+            />
+            <TextField sx={{ flex: "1 1 260px" }}
+              label="Last 4 digits of phone"
+              placeholder="1403"
+              value={phoneLast4}
+              onChange={(event) => setPhoneLast4(event.target.value)}
+              size="small"
+              inputProps={{ maxLength: 4 }}
+              fullWidth
+            />
+          </div>
 
-        {errorMessage && (
-          <Alert severity="error" sx={{ mt: 1.5 }}>
-            {errorMessage}
-          </Alert>
-        )}
-        {!errorMessage && infoMessage && (
-          <Alert severity="info" sx={{ mt: 1.5 }}>
-            {infoMessage}
-          </Alert>
-        )}
-      </SearchCard>
+          <button
+            onClick={findMyInvoices}
+            disabled={loading}
+            style={{
+              background: "#6d28d9",
+              color: "white",
+              borderRadius: "8px",
+              padding: "10px 24px",
+              fontSize: "14px",
+              fontWeight: 600,
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              width: "100%",
+              marginTop: "16px",
+              opacity: loading ? 0.8 : 1,
+            }}
+            onMouseEnter={(event) => {
+              if (!loading) event.currentTarget.style.background = "#5b21b6";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.background = "#6d28d9";
+            }}
+          >
+            {loading ? "Searching..." : "VIEW MY INVOICES"}
+          </button>
+
+          {errorMessage && (
+            <Alert severity="error" sx={{ mt: 1.5 }}>
+              {errorMessage}
+            </Alert>
+          )}
+          {!errorMessage && infoMessage && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              {infoMessage}
+            </Alert>
+          )}
+        </div>
+      </div>
 
       {customer && (
-        <Paper sx={{ p: 2, mt: 2, border: "1px solid #e5e7eb" }} elevation={0}>
-          <Typography sx={{ fontWeight: 700, mb: 1 }}>Customer Profile</Typography>
-          <Typography>Customer Ref: {customer.referenceCode || "-"}</Typography>
-          <Typography>Name: {customer.name}</Typography>
-          <Typography>Email: {customer.email}</Typography>
-          <Typography>Phone: {customer.phone}</Typography>
-          <Typography>Address: {customer.address}</Typography>
+        <>
+          <div style={{ maxWidth: "800px", margin: "0 auto 20px", padding: "0 16px" }}>
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "12px",
+                border: "0.5px solid #e5e7eb",
+                padding: "20px 24px",
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #6d28d9, #4f46e5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "18px",
+                  fontWeight: "700",
+                  flexShrink: 0,
+                }}
+              >
+                {customerInitials || "CU"}
+              </div>
 
-          <Typography sx={{ fontWeight: 700, mt: 2 }}>Invoices</Typography>
-          {!sortedInvoices.length && (
-            <Typography sx={{ color: "#666", mt: 0.5 }}>No invoices available.</Typography>
-          )}
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <div
+                  style={{
+                    fontWeight: "700",
+                    fontSize: "17px",
+                    color: "#1f2937",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {customer.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "#6b7280",
+                    display: "flex",
+                    gap: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span>ðŸ“§ {customer.email}</span>
+                  <span>ðŸ“ž {customer.phone}</span>
+                  <span>ðŸ“ {customer.address}</span>
+                </div>
+              </div>
 
-          {!!sortedInvoices.length && (
-            <StyledTable size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Invoice #</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Due Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Total</TableCell>
-                  <TableCell>Paid</TableCell>
-                  <TableCell>Balance</TableCell>
-                  <TableCell>Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sortedInvoices.map((invoice) => {
-                  const status = deriveInvoiceStatus(invoice);
-                  const total = Number(invoice.totalAmount || invoice.amount || 0);
-                  const paid = Number(invoice.paidAmount || 0);
-                  const balance = Math.max(0, total - paid);
-                  const isOverdue = status === "overdue";
+              <div
+                style={{
+                  background: "#f5f3ff",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  textAlign: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#7c3aed",
+                    fontWeight: "500",
+                    marginBottom: "2px",
+                  }}
+                >
+                  Customer Ref
+                </div>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: "#6d28d9",
+                  }}
+                >
+                  {customer.referenceCode || customer.customerRef || "-"}
+                </div>
+              </div>
+            </div>
+          </div>
 
-                  return (
-                    <TableRow key={invoice.id} sx={{ backgroundColor: isOverdue ? "#fff4f3" : undefined }}>
-                      <TableCell>{invoice.id}</TableCell>
-                      <TableCell>{invoice.date || "-"}</TableCell>
-                      <TableCell>{invoice.dueDate || "-"}</TableCell>
-                      <TableCell>
-                        <Chip size="small" color={statusColor(status)} label={toTitleCase(status)} />
-                      </TableCell>
-                      <TableCell>{formatCurrency(total)}</TableCell>
-                      <TableCell>{formatCurrency(paid)}</TableCell>
-                      <TableCell>
-                        <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 600 }}>
-                          {formatCurrency(balance)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setSelectedInvoice(invoice)}
-                          >
-                            View Details
-                          </Button>
-                          <button
-                            onClick={() =>
-                              generateInvoicePDF(invoice, {
-                                name: customer?.name || invoice?.customer?.name || "-",
-                                email: customer?.email || invoice?.customer?.email || "-",
-                                phone: customer?.phone || invoice?.customer?.phone || "-",
-                                address: customer?.address || invoice?.customer?.address || "-",
-                                customerRef:
-                                  customer?.referenceCode ||
-                                  customer?.customerRef ||
-                                  invoice?.customer?.referenceCode ||
-                                  "-",
-                              })
-                            }
-                            style={{
-                              background: "#6d28d9",
-                              color: "#fff",
-                              border: "none",
-                              borderRadius: "6px",
-                              padding: "6px 12px",
-                              fontWeight: "500",
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                            }}
-                          >
-                            ⬇ Download PDF
-                          </button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </StyledTable>
-          )}
-        </Paper>
+          <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 16px" }}>
+            <h3
+              style={{
+                fontSize: "15px",
+                fontWeight: "600",
+                color: "#1f2937",
+                marginBottom: "12px",
+              }}
+            >
+              Your Invoices ({sortedInvoices.length})
+            </h3>
+
+            {!sortedInvoices.length && (
+              <Typography sx={{ color: "#6b7280", mb: 1.5 }}>No invoices available.</Typography>
+            )}
+
+            {sortedInvoices.map((invoice) => {
+              const status = deriveInvoiceStatus(invoice);
+              const total = Number(invoice.total ?? invoice.totalAmount ?? invoice.amount ?? 0);
+              const paid = Number(invoice.paid ?? invoice.paidAmount ?? 0);
+              const balance = Number(invoice.balance ?? Math.max(0, total - paid));
+
+              return (
+                <div
+                  key={invoice.id}
+                  style={{
+                    background: "#fff",
+                    border: "0.5px solid #e5e7eb",
+                    borderRadius: "12px",
+                    padding: "20px 24px",
+                    marginBottom: "12px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: "600",
+                        fontSize: "15px",
+                        color: "#1f2937",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Invoice #{invoice.id}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        display: "flex",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span>ðŸ“… Issued: {formatDate(invoice.date)}</span>
+                      <span>â° Due: {formatDate(invoice.dueDate)}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "center" }}>
+                    <div
+                      style={{
+                        fontSize: "20px",
+                        fontWeight: "700",
+                        color: "#1f2937",
+                      }}
+                    >
+                      Rs {Number(total).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                      Balance:
+                      <span
+                        style={{
+                          color: Number(balance) > 0 ? "#dc2626" : "#059669",
+                          fontWeight: "600",
+                          marginLeft: "4px",
+                        }}
+                      >
+                        Rs {Number(balance).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: "8px",
+                    }}
+                  >
+                    <Chip size="small" color={statusColor(status)} label={toTitleCase(status)} />
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <Button size="small" variant="outlined" onClick={() => setSelectedInvoice(invoice)}>
+                        View Details
+                      </Button>
+                      <button
+                        onClick={() =>
+                          generateInvoicePDF(invoice, {
+                            name: customer?.name || invoice?.customer?.name || "-",
+                            email: customer?.email || invoice?.customer?.email || "-",
+                            phone: customer?.phone || invoice?.customer?.phone || "-",
+                            address: customer?.address || invoice?.customer?.address || "-",
+                            customerRef:
+                              customer?.referenceCode ||
+                              customer?.customerRef ||
+                              invoice?.customer?.referenceCode ||
+                              "-",
+                          })
+                        }
+                        style={{
+                          background: "#6d28d9",
+                          color: "white",
+                          borderRadius: "6px",
+                          padding: "7px 14px",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(event) => {
+                          event.currentTarget.style.background = "#5b21b6";
+                        }}
+                        onMouseLeave={(event) => {
+                          event.currentTarget.style.background = "#6d28d9";
+                        }}
+                      >
+                        Download PDF
+                      </button>
+                    </Box>
+                  </div>
+                </div>
+              );
+            })}
+
+            {!!sortedInvoices.length && (
+              <div
+                style={{
+                  background: "#f5f3ff",
+                  border: "1px solid #ede9fe",
+                  borderRadius: "12px",
+                  padding: "16px 24px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                  marginTop: "8px",
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#7c3aed",
+                      fontWeight: "500",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Total Invoices
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#6d28d9",
+                    }}
+                  >
+                    {sortedInvoices.length}
+                  </div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#7c3aed",
+                      fontWeight: "500",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Total Billed
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#6d28d9",
+                    }}
+                  >
+                    Rs {sortedInvoices.reduce((s, i) => s + Number(i.total || 0), 0).toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#059669",
+                      fontWeight: "500",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Total Paid
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#047857",
+                    }}
+                  >
+                    Rs {sortedInvoices
+                      .reduce((s, i) => s + (i.status === "Paid" ? Number(i.total || 0) : Number(i.paid || 0)), 0)
+                      .toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#dc2626",
+                      fontWeight: "500",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Balance Due
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#b91c1c",
+                    }}
+                  >
+                    Rs {sortedInvoices.reduce((s, i) => s + Number(i.balance || 0), 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <InvoiceDetailsDialog
@@ -298,7 +572,7 @@ function CustomerInvoicePortal() {
         open={Boolean(selectedInvoice)}
         onClose={() => setSelectedInvoice(null)}
       />
-    </Wrapper>
+    </Box>
   );
 }
 
