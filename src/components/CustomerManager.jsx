@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -44,12 +43,9 @@ const FormRow = styled(Box)(() => ({
 
 const ControlsRow = styled(Box)(() => ({
   display: "grid",
-  gridTemplateColumns: "2fr 1fr",
+  gridTemplateColumns: "1fr",
   gap: 12,
   marginBottom: 12,
-  "@media (max-width: 900px)": {
-    gridTemplateColumns: "1fr",
-  },
 }));
 
 const StyledTable = styled(Table)(() => ({
@@ -75,11 +71,42 @@ const EmptyCustomer = {
 
 const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
 
-const statusLabels = {
-  all: "All Customers",
-  withInvoices: "With Invoices",
-  noInvoices: "No Invoices",
-  open: "Open Invoices",
+const INVOICE_TABS = [
+  { value: "all", label: "All", badge: "#7c3aed" },
+  { value: "draft", label: "Draft", badge: "#2563eb" },
+  { value: "paid", label: "Paid", badge: "#16a34a" },
+  { value: "overdue", label: "Overdue", badge: "#dc2626" },
+  { value: "partial", label: "Partial", badge: "#d97706" },
+];
+
+const getInvoiceStatusForTabs = (invoice) => {
+  if (!invoice) {
+    return null;
+  }
+
+  const explicitStatus = String(invoice?.status || invoice?.action || "").trim().toLowerCase();
+  if (explicitStatus === "partial") {
+    return "partial";
+  }
+  if (explicitStatus === "paid") {
+    return "paid";
+  }
+  if (explicitStatus === "overdue") {
+    return "overdue";
+  }
+  if (explicitStatus === "draft") {
+    return "draft";
+  }
+
+  const derivedStatus = normalizeInvoiceStatus(deriveInvoiceStatus(invoice));
+  if (derivedStatus === "sent" || derivedStatus === "draft") {
+    return "draft";
+  }
+  if (derivedStatus === "paid" || derivedStatus === "overdue") {
+    return derivedStatus;
+  }
+
+  return "draft";
 };
 
 function CustomerManager({
@@ -96,7 +123,7 @@ function CustomerManager({
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedInvoiceTab, setSelectedInvoiceTab] = useState("all");
 
   const invoiceMap = useMemo(() => {
     const map = new Map();
@@ -137,16 +164,11 @@ function CustomerManager({
     return sortedCustomers.map((customer) => {
       const customerInvoices = invoiceMap.get(String(customer.id)) || [];
       const latestInvoice = customerInvoices[0] || null;
-      const hasOpen = customerInvoices.some((invoice) => {
-        const status = normalizeInvoiceStatus(deriveInvoiceStatus(invoice));
-        return status === "draft" || status === "sent" || status === "overdue";
-      });
 
       return {
         customer,
         latestInvoice,
         invoiceCount: customerInvoices.length,
-        hasOpen,
       };
     });
   }, [sortedCustomers, invoiceMap]);
@@ -154,7 +176,7 @@ function CustomerManager({
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return enrichedCustomers.filter(({ customer, invoiceCount, hasOpen }) => {
+    return enrichedCustomers.filter(({ customer, latestInvoice }) => {
       const text = [
         customer.referenceCode,
         customer.name,
@@ -171,21 +193,33 @@ function CustomerManager({
         return false;
       }
 
-      if (statusFilter === "withInvoices") {
-        return invoiceCount > 0;
+      if (selectedInvoiceTab === "all") {
+        return true;
       }
 
-      if (statusFilter === "noInvoices") {
-        return invoiceCount === 0;
-      }
-
-      if (statusFilter === "open") {
-        return hasOpen;
-      }
-
-      return true;
+      const latestStatus = getInvoiceStatusForTabs(latestInvoice);
+      return latestStatus === selectedInvoiceTab;
     });
-  }, [enrichedCustomers, searchValue, statusFilter]);
+  }, [enrichedCustomers, searchValue, selectedInvoiceTab]);
+
+  const tabCounts = useMemo(() => {
+    const counts = {
+      all: enrichedCustomers.length,
+      draft: 0,
+      paid: 0,
+      overdue: 0,
+      partial: 0,
+    };
+
+    enrichedCustomers.forEach(({ latestInvoice }) => {
+      const latestStatus = getInvoiceStatusForTabs(latestInvoice);
+      if (latestStatus && counts[latestStatus] !== undefined) {
+        counts[latestStatus] += 1;
+      }
+    });
+
+    return counts;
+  }, [enrichedCustomers]);
 
   const activeCustomerData = useMemo(() => {
     const activeId = selectedCustomerId || filteredCustomers[0]?.customer?.id;
@@ -302,6 +336,58 @@ function CustomerManager({
 
   return (
     <Wrapper>
+      <Box sx={{ borderBottom: "1px solid #e5e7eb", mb: 1.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 0.5,
+            overflowX: "auto",
+            "&::-webkit-scrollbar": { height: 6 },
+          }}
+        >
+          {INVOICE_TABS.map((tab) => {
+            const isActive = selectedInvoiceTab === tab.value;
+            return (
+              <Box
+                key={tab.value}
+                onClick={() => setSelectedInvoiceTab(tab.value)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 1,
+                  cursor: "pointer",
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                  borderBottom: isActive ? "2px solid #7c3aed" : "2px solid transparent",
+                  color: isActive ? "#7c3aed" : "#6b7280",
+                  fontWeight: isActive ? 600 : 500,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <Typography sx={{ fontSize: 14, color: "inherit", fontWeight: "inherit" }}>{tab.label}</Typography>
+                <Box
+                  sx={{
+                    minWidth: 20,
+                    px: 0.75,
+                    py: 0.15,
+                    borderRadius: 10,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    textAlign: "center",
+                    color: "#fff",
+                    backgroundColor: tab.badge,
+                  }}
+                >
+                  {tabCounts[tab.value]}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+
       <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Customer Management</Typography>
       <Typography sx={{ color: "#666", mt: 0.5 }}>
         Customer-first workflow: maintain customer data and manage linked invoices.
@@ -360,19 +446,6 @@ function CustomerManager({
           value={searchValue}
           onChange={(event) => setSearchValue(event.target.value)}
         />
-        <TextField
-          select
-          label="Filter"
-          size="small"
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-        >
-          {Object.entries(statusLabels).map(([value, label]) => (
-            <MenuItem key={value} value={value}>
-              {label}
-            </MenuItem>
-          ))}
-        </TextField>
       </ControlsRow>
 
       {errorMessage && (
@@ -408,12 +481,12 @@ function CustomerManager({
         <TableBody>
           {filteredCustomers.map(({ customer, latestInvoice, invoiceCount }) => {
             const isSelected = activeCustomerData?.customer?.id === customer.id;
-            const invoiceStatus = latestInvoice ? deriveInvoiceStatus(latestInvoice) : null;
+            const invoiceStatus = latestInvoice ? getInvoiceStatusForTabs(latestInvoice) : null;
             const normalizedStatus = normalizeInvoiceStatus(invoiceStatus);
-            const total = Number(latestInvoice?.totalAmount || latestInvoice?.amount || 0);
-            const paid = Number(latestInvoice?.paidAmount || 0);
-            const balance = Math.max(0, total - paid);
-            const isOverdue = normalizedStatus === "overdue";
+            const total = Number(latestInvoice?.total ?? latestInvoice?.totalAmount ?? latestInvoice?.amount ?? 0);
+            const paid = Number(latestInvoice?.paid ?? latestInvoice?.paidAmount ?? 0);
+            const balance = Number(latestInvoice?.balance ?? Math.max(0, total - paid));
+            const isOverdue = invoiceStatus === "overdue";
 
             return (
               <TableRow
@@ -451,7 +524,11 @@ function CustomerManager({
                 <TableCell>{latestInvoice?.dueDate || "-"}</TableCell>
                 <TableCell>
                   {latestInvoice ? (
-                    <Chip size="small" color={statusColor(normalizedStatus)} label={toTitleCase(normalizedStatus)} />
+                    <Chip
+                      size="small"
+                      color={invoiceStatus === "partial" ? "warning" : statusColor(normalizedStatus)}
+                      label={toTitleCase(invoiceStatus)}
+                    />
                   ) : (
                     "No Invoice"
                   )}

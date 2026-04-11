@@ -1,15 +1,45 @@
 import { Box, Button, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AddInvoice from "./AddInvoice";
+import ActivityTimeline from "./ActivityTimeline";
 import CustomerManager from "./CustomerManager";
+import RevenueChart from "./RevenueChart";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
+
+const DASHBOARD_TABS = [
+  { key: "overview", label: "Overview", icon: "\uD83D\uDCCA" },
+  { key: "customers", label: "Customers", icon: "\uD83D\uDC65" },
+  { key: "activity", label: "Activity", icon: "\uD83D\uDD50" },
+];
+
+const formatStatCurrency = (value) => `Rs ${(Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+const getInvoiceStatus = (invoice) => {
+  const raw = String(invoice?.status || invoice?.action || "").trim().toLowerCase();
+  if (raw === "paid") return "paid";
+  if (raw === "partial") return "partial";
+  if (raw === "overdue") return "overdue";
+  if (raw === "draft") return "draft";
+
+  const total = Number(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount ?? 0);
+  const paid = Number(invoice?.paid ?? invoice?.paidAmount ?? 0);
+
+  if (total > 0 && paid + 0.000001 >= total) {
+    return "paid";
+  }
+  if (paid > 0 && paid < total) {
+    return "partial";
+  }
+
+  return "draft";
+};
 
 function Home() {
   const [addInvoice, setAddInvoice] = useState(false);
-  const [showCustomers, setShowCustomers] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [invoiceCustomerId, setInvoiceCustomerId] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const loadInvoices = async () => {
     try {
@@ -39,6 +69,7 @@ function Home() {
   const openInvoiceForCustomer = (customerId = null) => {
     setInvoiceCustomerId(customerId);
     setAddInvoice(true);
+    setActiveTab("customers");
   };
 
   const handleInvoiceSaved = async () => {
@@ -47,48 +78,220 @@ function Home() {
     setInvoiceCustomerId(null);
   };
 
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let totalBilled = 0;
+    let collected = 0;
+    let overdue = 0;
+
+    (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
+      const total = Number(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount ?? 0);
+      const paid = Number(invoice?.paid ?? invoice?.paidAmount ?? 0);
+      const balance = Number(invoice?.balance ?? Math.max(0, total - paid));
+      const status = getInvoiceStatus(invoice);
+
+      totalBilled += total;
+
+      if (status === "paid") {
+        collected += total;
+      } else if (status === "partial") {
+        collected += paid;
+      }
+
+      if (invoice?.dueDate && status !== "paid") {
+        const dueDate = new Date(`${invoice.dueDate}T00:00:00`);
+        if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
+          overdue += Math.max(0, balance);
+        }
+      }
+    });
+
+    const outstanding = Math.max(0, totalBilled - collected);
+    return { totalBilled, collected, outstanding, overdue };
+  }, [invoices]);
+
+  const statCards = [
+    {
+      label: "Total Billed",
+      value: stats.totalBilled,
+      accent: "#7e22ce",
+      bg: "#faf5ff",
+    },
+    {
+      label: "Collected",
+      value: stats.collected,
+      accent: "#15803d",
+      bg: "#f0fdf4",
+    },
+    {
+      label: "Outstanding",
+      value: stats.outstanding,
+      accent: "#b45309",
+      bg: "#fffbeb",
+    },
+    {
+      label: "Overdue",
+      value: stats.overdue,
+      accent: "#b91c1c",
+      bg: "#fef2f2",
+    },
+  ];
+
   return (
     <Box sx={{ margin: 2.5 }}>
-      <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Invoice Operations</Typography>
-      <Box sx={{ display: "flex", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
-        {!addInvoice && (
-          <Button variant="outlined" onClick={() => openInvoiceForCustomer()}>
-            Add Invoice
-          </Button>
-        )}
-        {addInvoice && (
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setAddInvoice(false);
-              setInvoiceCustomerId(null);
-            }}
-          >
-            Hide Invoice Form
-          </Button>
-        )}
-        <Button variant="outlined" onClick={() => setShowCustomers((prev) => !prev)}>
-          {showCustomers ? "Hide Customers" : "Manage Customers"}
-        </Button>
+      <Typography sx={{ fontSize: 30, fontWeight: 700 }}>Invoice Operations</Typography>
+
+      <Box
+        sx={{
+          mt: 1.5,
+          display: "flex",
+          gap: "4px",
+          borderBottom: "1px solid #e5e7eb",
+          flexWrap: "wrap",
+        }}
+      >
+        {DASHBOARD_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <Box
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                px: "20px",
+                py: "10px",
+                fontSize: "14px",
+                cursor: "pointer",
+                userSelect: "none",
+                color: isActive ? "#6d28d9" : "#6b7280",
+                borderBottom: isActive ? "2px solid #6d28d9" : "2px solid transparent",
+                fontWeight: isActive ? 600 : 500,
+                background: "transparent",
+              }}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </Box>
+          );
+        })}
       </Box>
 
-      {addInvoice && (
-        <AddInvoice
-          setAddInvoice={setAddInvoice}
-          customers={customers}
-          onSaved={handleInvoiceSaved}
-          initialCustomerId={invoiceCustomerId}
-        />
+      {activeTab === "customers" && (
+        <Box sx={{ display: "flex", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
+          {!addInvoice && (
+            <Button variant="outlined" onClick={() => openInvoiceForCustomer()}>
+              Add Invoice
+            </Button>
+          )}
+          {addInvoice && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setAddInvoice(false);
+                setInvoiceCustomerId(null);
+              }}
+            >
+              Hide Invoice Form
+            </Button>
+          )}
+        </Box>
       )}
 
-      {showCustomers && (
-        <CustomerManager
-          customers={customers}
-          invoices={invoices}
-          onCustomersChanged={loadCustomers}
-          onInvoicesChanged={loadInvoices}
-          onCreateInvoiceForCustomer={openInvoiceForCustomer}
-        />
+      {activeTab === "overview" && (
+        <Box sx={{ mt: 2 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
+              gap: 1.5,
+              mb: 2,
+              "@media (max-width: 1100px)": {
+                gridTemplateColumns: "repeat(2, minmax(160px, 1fr))",
+              },
+              "@media (max-width: 700px)": {
+                gridTemplateColumns: "1fr",
+              },
+            }}
+          >
+            {statCards.map((card) => (
+              <Box
+                key={card.label}
+                sx={{
+                  border: `1px solid ${card.accent}33`,
+                  borderRadius: 2,
+                  backgroundColor: card.bg,
+                  px: 2,
+                  py: 1.5,
+                }}
+              >
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: card.accent, letterSpacing: 0.3 }}>
+                  {card.label}
+                </Typography>
+                <Typography sx={{ fontSize: 33, fontWeight: 700, color: card.accent, mt: 0.5 }}>
+                  {formatStatCurrency(card.value)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          <RevenueChart customers={customers} invoices={invoices} />
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => setActiveTab("customers")}
+              style={{
+                color: "#6d28d9",
+                fontSize: "13px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontWeight: 600,
+                padding: 0,
+              }}
+            >
+              {"View All Customers \u2192"}
+            </button>
+          </Box>
+        </Box>
+      )}
+
+      {activeTab === "customers" && (
+        <>
+          {addInvoice && (
+            <AddInvoice
+              setAddInvoice={setAddInvoice}
+              customers={customers}
+              onSaved={handleInvoiceSaved}
+              initialCustomerId={invoiceCustomerId}
+            />
+          )}
+
+          <CustomerManager
+            customers={customers}
+            invoices={invoices}
+            onCustomersChanged={loadCustomers}
+            onInvoicesChanged={loadInvoices}
+            onCreateInvoiceForCustomer={openInvoiceForCustomer}
+          />
+        </>
+      )}
+
+      {activeTab === "activity" && (
+        <Box
+          sx={{
+            marginTop: 2,
+            padding: 2,
+            border: "1px solid #e5e7eb",
+            borderRadius: 2,
+            background: "#fff",
+          }}
+        >
+          <ActivityTimeline customers={customers} invoices={invoices} />
+        </Box>
       )}
     </Box>
   );

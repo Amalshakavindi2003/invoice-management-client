@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
+import { generateInvoicePDF } from "../utils/invoicePdf";
 
 const formatCurrency = (value) => `Rs ${(Number(value) || 0).toFixed(2)}`;
 
@@ -27,6 +28,13 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
   }
 
   const customer = invoice.customer || {};
+  const pdfCustomer = {
+    name: customer.name || invoice.vendor || "-",
+    email: customer.email || "-",
+    phone: customer.phone || "-",
+    address: customer.address || "-",
+    customerRef: customer.referenceCode || customer.customerRef || "-",
+  };
   const lineItems = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
   const status = deriveInvoiceStatus(invoice);
   const total = Number(invoice.totalAmount || invoice.amount || 0);
@@ -114,6 +122,24 @@ function InvoiceDetailsDialog({ invoice, open, onClose }) {
         </Box>
       </DialogContent>
       <DialogActions>
+        <button
+          onClick={() => generateInvoicePDF(invoice, pdfCustomer)}
+          style={{
+            background: "#6d28d9",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            padding: "8px 18px",
+            fontWeight: "500",
+            cursor: "pointer",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          ⬇ Download PDF
+        </button>
         <Button onClick={onClose} variant="contained">
           Close
         </Button>
