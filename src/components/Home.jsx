@@ -7,32 +7,13 @@ import RevenueChart from "./RevenueChart";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
 
 const DASHBOARD_TABS = [
-  { key: "overview", label: "Overview", icon: "\uD83D\uDCCA" },
-  { key: "customers", label: "Customers", icon: "\uD83D\uDC65" },
-  { key: "activity", label: "Activity", icon: "\uD83D\uDD50" },
+  { key: "overview", label: "Overview", icon: "📊" },
+  { key: "customers", label: "Customers", icon: "👥" },
+  { key: "activity", label: "Activity", icon: "🕐" },
 ];
 
-const formatStatCurrency = (value) => `Rs ${(Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-
-const getInvoiceStatus = (invoice) => {
-  const raw = String(invoice?.status || invoice?.action || "").trim().toLowerCase();
-  if (raw === "paid") return "paid";
-  if (raw === "partial") return "partial";
-  if (raw === "overdue") return "overdue";
-  if (raw === "draft") return "draft";
-
-  const total = Number(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount ?? 0);
-  const paid = Number(invoice?.paid ?? invoice?.paidAmount ?? 0);
-
-  if (total > 0 && paid + 0.000001 >= total) {
-    return "paid";
-  }
-  if (paid > 0 && paid < total) {
-    return "partial";
-  }
-
-  return "draft";
-};
+const formatStatCurrency = (value) =>
+  `Rs ${(Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function Home() {
   const [addInvoice, setAddInvoice] = useState(false);
@@ -79,38 +60,52 @@ function Home() {
   };
 
   const stats = useMemo(() => {
+    const safeCustomers = Array.isArray(customers) ? customers : [];
+
+    const totalBilled = safeCustomers.reduce((sum, c) => {
+      const customerInvoices = c.invoiceList || c.invoices || [];
+      return sum + customerInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
+    }, 0);
+
+    const collected = safeCustomers.reduce((sum, c) => {
+      const customerInvoices = c.invoiceList || c.invoices || [];
+      return (
+        sum +
+        customerInvoices.reduce((s, inv) => {
+          if (inv.status === "Paid") return s + Number(inv.total || 0);
+          if (inv.status === "Partial") return s + Number(inv.paid || 0);
+          return s;
+        }, 0)
+      );
+    }, 0);
+
+    const outstanding = safeCustomers.reduce((sum, c) => {
+      const customerInvoices = c.invoiceList || c.invoices || [];
+      return (
+        sum +
+        customerInvoices.reduce((s, inv) => {
+          if (inv.status !== "Paid") return s + Number(inv.balance || 0);
+          return s;
+        }, 0)
+      );
+    }, 0);
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const overdue = safeCustomers.reduce((sum, c) => {
+      const customerInvoices = c.invoiceList || c.invoices || [];
+      return (
+        sum +
+        customerInvoices.reduce((s, inv) => {
+          const due = new Date(inv.dueDate);
+          if (due < today && inv.status !== "Paid") return s + Number(inv.balance || 0);
+          return s;
+        }, 0)
+      );
+    }, 0);
 
-    let totalBilled = 0;
-    let collected = 0;
-    let overdue = 0;
-
-    (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
-      const total = Number(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount ?? 0);
-      const paid = Number(invoice?.paid ?? invoice?.paidAmount ?? 0);
-      const balance = Number(invoice?.balance ?? Math.max(0, total - paid));
-      const status = getInvoiceStatus(invoice);
-
-      totalBilled += total;
-
-      if (status === "paid") {
-        collected += total;
-      } else if (status === "partial") {
-        collected += paid;
-      }
-
-      if (invoice?.dueDate && status !== "paid") {
-        const dueDate = new Date(`${invoice.dueDate}T00:00:00`);
-        if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
-          overdue += Math.max(0, balance);
-        }
-      }
-    });
-
-    const outstanding = Math.max(0, totalBilled - collected);
     return { totalBilled, collected, outstanding, overdue };
-  }, [invoices]);
+  }, [customers]);
 
   const statCards = [
     {
@@ -253,7 +248,7 @@ function Home() {
                 padding: 0,
               }}
             >
-              {"View All Customers \u2192"}
+              {"View All Customers →"}
             </button>
           </Box>
         </Box>

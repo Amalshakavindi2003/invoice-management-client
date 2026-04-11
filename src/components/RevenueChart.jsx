@@ -12,28 +12,6 @@ import {
 
 const toNumber = (value) => Number(value || 0);
 
-const getInvoiceStatus = (invoice) => {
-  const raw = String(invoice?.status || invoice?.action || "").trim().toLowerCase();
-  if (raw === "paid") {
-    return "paid";
-  }
-  if (raw === "partial") {
-    return "partial";
-  }
-
-  const total = toNumber(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount);
-  const paid = toNumber(invoice?.paid ?? invoice?.paidAmount);
-
-  if (total > 0 && paid + 0.000001 >= total) {
-    return "paid";
-  }
-  if (paid > 0 && paid < total) {
-    return "partial";
-  }
-
-  return raw || "draft";
-};
-
 function RevenueChart({ customers = [], invoices = [] }) {
   const monthlyData = useMemo(() => {
     const months = {};
@@ -73,15 +51,15 @@ function RevenueChart({ customers = [], invoices = [] }) {
         return;
       }
 
-      const total = toNumber(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount);
-      const paid = toNumber(invoice?.paid ?? invoice?.paidAmount);
-      const status = getInvoiceStatus(invoice);
+      const total = toNumber(invoice?.total);
+      const paid = toNumber(invoice?.paid);
+      const status = String(invoice?.status || "");
 
       months[key].billed += total;
 
-      if (status === "paid") {
+      if (status === "Paid") {
         months[key].collected += total;
-      } else if (status === "partial") {
+      } else if (status === "Partial") {
         months[key].collected += paid;
       }
 
@@ -229,7 +207,7 @@ function RevenueChart({ customers = [], invoices = [] }) {
         <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
           <defs>
             <linearGradient id="billedGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15} />
+              <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.08} />
               <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="collectedGrad" x1="0" y1="0" x2="0" y2="1">
@@ -258,9 +236,10 @@ function RevenueChart({ customers = [], invoices = [] }) {
             dataKey="billed"
             name="Billed"
             stroke="#7c3aed"
-            strokeWidth={2}
+            strokeWidth={2.5}
+            strokeDasharray="6 3"
             fill="url(#billedGrad)"
-            dot={{ fill: "#7c3aed", r: 3 }}
+            dot={{ fill: "#7c3aed", r: 4, strokeWidth: 2 }}
             activeDot={{ r: 5 }}
           />
           <Area
@@ -268,9 +247,10 @@ function RevenueChart({ customers = [], invoices = [] }) {
             dataKey="collected"
             name="Collected"
             stroke="#10b981"
-            strokeWidth={2}
+            strokeWidth={2.5}
+            strokeDasharray="0"
             fill="url(#collectedGrad)"
-            dot={{ fill: "#10b981", r: 3 }}
+            dot={{ fill: "#10b981", r: 4, strokeWidth: 2 }}
             activeDot={{ r: 5 }}
           />
         </AreaChart>

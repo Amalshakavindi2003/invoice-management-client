@@ -109,6 +109,15 @@ const getInvoiceStatusForTabs = (invoice) => {
   return "draft";
 };
 
+const getLatestStatus = (customer) => {
+  const customerInvoices = customer.invoiceList || customer.invoices || [];
+  if (customerInvoices.length === 0) return null;
+  const sorted = [...customerInvoices].sort((a, b) =>
+    new Date(b.date || b.invoiceDate) - new Date(a.date || a.invoiceDate)
+  );
+  return sorted[0].status;
+};
+
 function CustomerManager({
   customers,
   invoices,
@@ -164,10 +173,13 @@ function CustomerManager({
     return sortedCustomers.map((customer) => {
       const customerInvoices = invoiceMap.get(String(customer.id)) || [];
       const latestInvoice = customerInvoices[0] || null;
+      const latestRawStatus = getLatestStatus(customer);
+      const latestStatus = latestRawStatus ? getInvoiceStatusForTabs({ status: latestRawStatus }) : null;
 
       return {
         customer,
         latestInvoice,
+        latestStatus,
         invoiceCount: customerInvoices.length,
       };
     });
@@ -176,7 +188,7 @@ function CustomerManager({
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return enrichedCustomers.filter(({ customer, latestInvoice }) => {
+    return enrichedCustomers.filter(({ customer, latestStatus }) => {
       const text = [
         customer.referenceCode,
         customer.name,
@@ -197,7 +209,6 @@ function CustomerManager({
         return true;
       }
 
-      const latestStatus = getInvoiceStatusForTabs(latestInvoice);
       return latestStatus === selectedInvoiceTab;
     });
   }, [enrichedCustomers, searchValue, selectedInvoiceTab]);
@@ -211,8 +222,7 @@ function CustomerManager({
       partial: 0,
     };
 
-    enrichedCustomers.forEach(({ latestInvoice }) => {
-      const latestStatus = getInvoiceStatusForTabs(latestInvoice);
+    enrichedCustomers.forEach(({ latestStatus }) => {
       if (latestStatus && counts[latestStatus] !== undefined) {
         counts[latestStatus] += 1;
       }
