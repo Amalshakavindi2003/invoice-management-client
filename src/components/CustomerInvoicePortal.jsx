@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Chip, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { getAllCustomers, getAllInvoice } from "../Services/api";
 import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
 import { generateInvoicePDF } from "../utils/invoicePdf";
@@ -119,6 +120,46 @@ function CustomerInvoicePortal() {
         }}
       >
         <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+              marginBottom: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              component={Link}
+              to="/login"
+              variant="outlined"
+              size="small"
+              sx={{
+                color: "#ede9fe",
+                borderColor: "#c4b5fd",
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": { borderColor: "#e9d5ff", backgroundColor: "rgba(255,255,255,0.08)" },
+              }}
+            >
+              Admin Login
+            </Button>
+            <Button
+              component={Link}
+              to="/"
+              variant="contained"
+              size="small"
+              sx={{
+                background: "#ede9fe",
+                color: "#4c1d95",
+                textTransform: "none",
+                fontWeight: 700,
+                "&:hover": { background: "#ddd6fe" },
+              }}
+            >
+              Dashboard
+            </Button>
+          </div>
           <h1
             style={{
               color: "#fff",
@@ -284,9 +325,9 @@ function CustomerInvoicePortal() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <span>ðŸ“§ {customer.email}</span>
-                  <span>ðŸ“ž {customer.phone}</span>
-                  <span>ðŸ“ {customer.address}</span>
+                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â§ {customer.email}</span>
+                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â¾ {customer.phone}</span>
+                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â {customer.address}</span>
                 </div>
               </div>
 
@@ -380,8 +421,8 @@ function CustomerInvoicePortal() {
                         flexWrap: "wrap",
                       }}
                     >
-                      <span>ðŸ“… Issued: {formatDate(invoice.date)}</span>
-                      <span>â° Due: {formatDate(invoice.dueDate)}</span>
+                      <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Issued: {formatDate(invoice.date)}</span>
+                      <span>ÃƒÂ¢Ã‚ÂÃ‚Â° Due: {formatDate(invoice.dueDate)}</span>
                     </div>
                   </div>
 
