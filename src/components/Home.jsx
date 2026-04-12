@@ -170,7 +170,7 @@ function Home() {
       const payload = {
         customerId: selectedCustomer?.id || getCustomerRef(selectedCustomer),
         customer: { id: Number(selectedCustomer?.id) },
-        vendor: selectedCustomer?.name || "",
+        vendor: selectedCustomer?.name || "No customer selected",
         product: String(lineItems[0]?.description || "").trim(),
         date: invoiceDate,
         dueDate,
@@ -381,9 +381,7 @@ function Home() {
                   {customers.map((c) => {
                     const ref = getCustomerRef(c) || String(c.id);
                     return (
-                      <option key={ref} value={ref}>
-                        {ref} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â {c.name}
-                      </option>
+                      <option key={ref} value={ref}>{ref} - {c.name}</option>
                     );
                   })}
                 </select>
@@ -616,7 +614,7 @@ function Home() {
                   >
                     Bill To
                   </div>
-                  <div style={{ fontWeight: "600", fontSize: "13px" }}>{selectedCustomer?.name || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â"}</div>
+                  <div style={{ fontWeight: "600", fontSize: "13px" }}>{selectedCustomer?.name || "No customer selected"}</div>
                   <div style={{ color: "#6b7280", fontSize: "11px" }}>{selectedCustomer?.email || ""}</div>
                   <div style={{ color: "#6b7280", fontSize: "11px" }}>{selectedCustomer?.phone || ""}</div>
                 </div>
@@ -624,11 +622,11 @@ function Home() {
                 <div style={{ display: "flex", gap: "16px", marginBottom: "16px", fontSize: "11px" }}>
                   <div>
                     <span style={{ color: "#9ca3af" }}>Date: </span>
-                    {invoiceDate || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â"}
+                    {invoiceDate || "-"}
                   </div>
                   <div>
                     <span style={{ color: "#9ca3af" }}>Due: </span>
-                    {dueDate || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â"}
+                    {dueDate || "-"}
                   </div>
                 </div>
 
@@ -644,7 +642,7 @@ function Home() {
                       key={`preview-${i}`}
                       style={{ display: "flex", fontSize: "11px", padding: "4px 0", borderBottom: "1px solid #f9fafb" }}
                     >
-                      <span style={{ flex: 2, color: "#374151" }}>{item.description || "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â"}</span>
+                      <span style={{ flex: 2, color: "#374151" }}>{item.description || "-"}</span>
                       <span style={{ flex: 1, textAlign: "right" }}>{item.qty}</span>
                       <span style={{ flex: 1, textAlign: "right" }}>Rs {Number(item.unitPrice).toLocaleString()}</span>
                       <span style={{ flex: 1, textAlign: "right", fontWeight: "600" }}>
@@ -705,8 +703,7 @@ function Home() {
             zIndex: 9999,
             animation: "slideIn 0.3s ease",
           }}
-        >
-          ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ {toast}
+        >          Success: {toast}
         </div>
       )}
     </Box>
