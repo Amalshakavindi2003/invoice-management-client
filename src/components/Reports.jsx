@@ -120,7 +120,7 @@ function Reports({ customers = [], invoices = [], loading = false }) {
           totalBilled,
           totalPaid,
           balance,
-          latestStatus: latestInvoice ? getInvoiceStatus(latestInvoice) || "â€”" : "â€”",
+          latestStatus: latestInvoice ? getInvoiceStatus(latestInvoice) || "-" : "-",
           collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0,
         };
       })
@@ -344,20 +344,20 @@ function Reports({ customers = [], invoices = [], loading = false }) {
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "80px", color: "#9ca3af", fontSize: "14px" }}>
-        <div style={{ fontSize: "32px", marginBottom: "12px" }}>ðŸ“Š</div>
+        <div style={{ fontSize: "32px", marginBottom: "12px" }}>{"\uD83D\uDCCA"}</div>
         Loading report data...
       </div>
     );
   }
 
   const metrics = [
-    { label: "Total Customers", value: stats.totalCustomers, icon: "ðŸ‘¥", color: "#6d28d9" },
-    { label: "Customers with Invoices", value: stats.invoicedCustomers, icon: "ðŸ“„", color: "#0891b2" },
-    { label: "Total Invoices Created", value: stats.totalInvoices, icon: "ðŸ§¾", color: "#059669" },
+    { label: "Total Customers", value: stats.totalCustomers, icon: "\uD83D\uDC65", color: "#6d28d9" },
+    { label: "Customers with Invoices", value: stats.invoicedCustomers, icon: "\uD83D\uDCC4", color: "#0891b2" },
+    { label: "Total Invoices Created", value: stats.totalInvoices, icon: "\uD83E\uDDFE", color: "#059669" },
     {
       label: "Collection Rate",
       value: `${stats.collectionRate}%`,
-      icon: "ðŸ“ˆ",
+      icon: "\uD83D\uDCC8",
       color: stats.collectionRate >= 75 ? "#059669" : stats.collectionRate >= 50 ? "#d97706" : "#dc2626",
     },
   ];
@@ -445,7 +445,7 @@ function Reports({ customers = [], invoices = [], loading = false }) {
               </thead>
               <tbody>
                 {topCustomers.map((c, index) => {
-                  const medal = index === 0 ? "ðŸ¥‡" : index === 1 ? "ðŸ¥ˆ" : index === 2 ? "ðŸ¥‰" : String(index + 1);
+                  const medal = index === 0 ? "\uD83E\uDD47" : index === 1 ? "\uD83E\uDD48" : index === 2 ? "\uD83E\uDD49" : String(index + 1);
                   const pill = statusPillStyle(c.latestStatus);
 
                   return (
@@ -489,19 +489,19 @@ function Reports({ customers = [], invoices = [], loading = false }) {
             onClick={() => handleExport("customers", generateCustomersCSV)}
             style={{ border: "1px solid #6d28d9", color: "#6d28d9", background: "white", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "customers" ? "âœ“ Downloaded!" : "â¬‡ Export Customers (.csv)"}
+            {exporting === "customers" ? "Downloaded!" : "Export Customers (.csv)"}
           </button>
           <button
             onClick={() => handleExport("invoices", generateInvoicesCSV)}
             style={{ border: "1px solid #6d28d9", color: "#6d28d9", background: "white", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "invoices" ? "âœ“ Downloaded!" : "â¬‡ Export Invoices (.csv)"}
+            {exporting === "invoices" ? "Downloaded!" : "Export Invoices (.csv)"}
           </button>
           <button
             onClick={() => handleExport("summary", generateSummaryPDF)}
             style={{ background: "#6d28d9", color: "white", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "summary" ? "âœ“ Downloaded!" : "â¬‡ Summary Report (.pdf)"}
+            {exporting === "summary" ? "Downloaded!" : "Summary Report (.pdf)"}
           </button>
         </div>
       </div>
