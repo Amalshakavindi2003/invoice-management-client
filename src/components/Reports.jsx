@@ -3,7 +3,6 @@ import { getCustomerInvoices, getInvoiceDate, getInvoiceDueDate, getInvoicePaid,
 import jsPDF from "jspdf";
 import RevenueChart from "./RevenueChart";
 
-const getInvoices = (customer) => customer?.invoiceList || customer?.invoices || customer?.customerInvoices || [];
 
 const statusPillStyle = (status) => {
   const value = String(status || "").toLowerCase();
@@ -121,7 +120,7 @@ function Reports({ customers = [], invoices = [], loading = false }) {
           totalBilled,
           totalPaid,
           balance,
-          latestStatus: latestInvoice ? getInvoiceStatus(latestInvoice) || "—" : "—",
+          latestStatus: latestInvoice ? getInvoiceStatus(latestInvoice) || "â€”" : "â€”",
           collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0,
         };
       })
@@ -345,20 +344,20 @@ function Reports({ customers = [], invoices = [], loading = false }) {
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "80px", color: "#9ca3af", fontSize: "14px" }}>
-        <div style={{ fontSize: "32px", marginBottom: "12px" }}>📊</div>
+        <div style={{ fontSize: "32px", marginBottom: "12px" }}>ðŸ“Š</div>
         Loading report data...
       </div>
     );
   }
 
   const metrics = [
-    { label: "Total Customers", value: stats.totalCustomers, icon: "👥", color: "#6d28d9" },
-    { label: "Customers with Invoices", value: stats.invoicedCustomers, icon: "📄", color: "#0891b2" },
-    { label: "Total Invoices Created", value: stats.totalInvoices, icon: "🧾", color: "#059669" },
+    { label: "Total Customers", value: stats.totalCustomers, icon: "ðŸ‘¥", color: "#6d28d9" },
+    { label: "Customers with Invoices", value: stats.invoicedCustomers, icon: "ðŸ“„", color: "#0891b2" },
+    { label: "Total Invoices Created", value: stats.totalInvoices, icon: "ðŸ§¾", color: "#059669" },
     {
       label: "Collection Rate",
       value: `${stats.collectionRate}%`,
-      icon: "📈",
+      icon: "ðŸ“ˆ",
       color: stats.collectionRate >= 75 ? "#059669" : stats.collectionRate >= 50 ? "#d97706" : "#dc2626",
     },
   ];
@@ -446,7 +445,7 @@ function Reports({ customers = [], invoices = [], loading = false }) {
               </thead>
               <tbody>
                 {topCustomers.map((c, index) => {
-                  const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : String(index + 1);
+                  const medal = index === 0 ? "ðŸ¥‡" : index === 1 ? "ðŸ¥ˆ" : index === 2 ? "ðŸ¥‰" : String(index + 1);
                   const pill = statusPillStyle(c.latestStatus);
 
                   return (
@@ -490,19 +489,19 @@ function Reports({ customers = [], invoices = [], loading = false }) {
             onClick={() => handleExport("customers", generateCustomersCSV)}
             style={{ border: "1px solid #6d28d9", color: "#6d28d9", background: "white", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "customers" ? "✓ Downloaded!" : "⬇ Export Customers (.csv)"}
+            {exporting === "customers" ? "âœ“ Downloaded!" : "â¬‡ Export Customers (.csv)"}
           </button>
           <button
             onClick={() => handleExport("invoices", generateInvoicesCSV)}
             style={{ border: "1px solid #6d28d9", color: "#6d28d9", background: "white", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "invoices" ? "✓ Downloaded!" : "⬇ Export Invoices (.csv)"}
+            {exporting === "invoices" ? "âœ“ Downloaded!" : "â¬‡ Export Invoices (.csv)"}
           </button>
           <button
             onClick={() => handleExport("summary", generateSummaryPDF)}
             style={{ background: "#6d28d9", color: "white", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
           >
-            {exporting === "summary" ? "✓ Downloaded!" : "⬇ Summary Report (.pdf)"}
+            {exporting === "summary" ? "âœ“ Downloaded!" : "â¬‡ Summary Report (.pdf)"}
           </button>
         </div>
       </div>
