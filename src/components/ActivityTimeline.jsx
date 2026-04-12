@@ -31,13 +31,6 @@ const toDisplayStatus = (invoice) => {
   return "Draft";
 };
 
-const parseDate = (value) => {
-  if (!value) {
-    return null;
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
 
 function ActivityTimeline({ customers = [], invoices = [] }) {
   const events = useMemo(() => {

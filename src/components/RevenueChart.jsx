@@ -11,7 +11,6 @@ import {
   Legend,
 } from "recharts";
 
-const toNumber = (value) => Number(value || 0);
 
 function RevenueChart({ customers = [], invoices = [] }) {
   const monthlyData = useMemo(() => {
