@@ -19,7 +19,8 @@ function Header() {
             variant={isActive("/") ? "contained" : "outlined"}
             sx={{ color: "white", borderColor: "white" }}
           >
-            Admin Dashboard
+            <span className="nav-full">ADMIN DASHBOARD</span>
+            <span className="nav-short" style={{ display: "none" }}>Admin</span>
           </Button>
           <Button
             component={Link}
@@ -27,7 +28,8 @@ function Header() {
             variant={isActive("/my-invoices") ? "contained" : "outlined"}
             sx={{ color: "white", borderColor: "white" }}
           >
-            My Invoices
+            <span className="nav-full">MY INVOICES</span>
+            <span className="nav-short" style={{ display: "none" }}>Invoices</span>
           </Button>
         </Box>
       </Toolbar>

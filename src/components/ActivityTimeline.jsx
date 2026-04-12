@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { getInvoiceDate, getInvoiceDueDate, getInvoicePaid, getInvoiceTotal, getInvoiceBalance } from "../utils/invoiceData";
 
 const toNumber = (value) => Number(value || 0);
 
@@ -40,16 +41,20 @@ const parseDate = (value) => {
 
 function ActivityTimeline({ customers = [], invoices = [] }) {
   const events = useMemo(() => {
-    const list = [];
+    if (!customers || customers.length === 0) return [];
 
-    (Array.isArray(customers) ? customers : []).forEach((customer) => {
-      const customerRef = customer.customerRef || customer.referenceCode || "-";
+    const list = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    customers.forEach((customer) => {
+      const customerRef = customer.referenceCode || customer.customerRef || "-";
 
       list.push({
-        id: `customer-${customer.customerRef || customer.referenceCode || customer.id || customer.name || "unknown"}`,
+        id: `cust-${customer.customerRef || customer.referenceCode || customer.id}`,
         type: "CustomerAdded",
         label: "Customer Added",
-        date: customer.createdAt || new Date().toISOString(),
+        date: customer.createdAt || customer.createdDate || new Date().toISOString(),
         customerName: customer.name,
         customerRef,
         amount: null,
@@ -57,115 +62,80 @@ function ActivityTimeline({ customers = [], invoices = [] }) {
         color: "#8b5cf6",
         dotBg: "#f5f3ff",
       });
+    });
 
-      const customerInvoices = customer.invoiceList || customer.invoices || customer.allInvoices || [];
+    (Array.isArray(invoices) ? invoices : []).forEach((inv) => {
+      const customer = inv?.customer || {};
+      const customerRef = customer.referenceCode || customer.customerRef || "-";
+      const customerName = customer.name || inv?.vendor || "Unknown Customer";
+      const dateStr = getInvoiceDate(inv);
+      const dueStr = getInvoiceDueDate(inv);
+      const status = String(toDisplayStatus(inv) || "");
+      const total = Number(getInvoiceTotal(inv) || 0);
+      const paid = Number(getInvoicePaid(inv) || 0);
+      const balance = Number(getInvoiceBalance(inv) || Math.max(0, total - paid));
+      const due = dueStr ? new Date(dueStr) : null;
 
-      customerInvoices.forEach((invoice) => {
-        const status = toDisplayStatus(invoice);
-        const date = invoice?.date || invoice?.invoiceDate || "";
-        const dueDate = invoice?.dueDate || "";
-        const total = toNumber(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount);
-        const paid = toNumber(invoice?.paid ?? invoice?.paidAmount);
-        const balance = toNumber(invoice?.balance ?? Math.max(0, total - paid));
-        const due = parseDate(dueDate);
-        if (due) {
-          due.setHours(0, 0, 0, 0);
-        }
+      list.push({
+        id: `created-${inv?.id}-${customer.id || customerRef}`,
+        type: "Created",
+        label: "Invoice Created",
+        date: dateStr,
+        customerName,
+        customerRef,
+        amount: total,
+        status,
+        color: "#6d28d9",
+        dotBg: "#f5f3ff",
+      });
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const isOverdue = Boolean(due && due < today && status !== "Paid");
-
-        const customerName = customer?.name || invoice?.customer?.name || invoice?.vendor || "Unknown Customer";
-
+      if (status === "Paid") {
         list.push({
-          id: `created-${invoice?.id}`,
-          type: "Created",
-          label: "Invoice Created",
-          date,
+          id: `paid-${inv?.id}-${customer.id || customerRef}`,
+          type: "Paid",
+          label: "Payment Received",
+          date: dateStr,
           customerName,
           customerRef,
           amount: total,
-          status,
-          color: "#6d28d9",
-          dotBg: "#f5f3ff",
+          status: "Paid",
+          color: "#10b981",
+          dotBg: "#ecfdf5",
         });
+      }
 
-        if (status === "Paid") {
-          list.push({
-            id: `paid-${invoice?.id}`,
-            type: "Paid",
-            label: "Payment Received",
-            date,
-            customerName,
-            customerRef,
-            amount: total,
-            status: "Paid",
-            color: "#10b981",
-            dotBg: "#ecfdf5",
-          });
-        }
-
-        if (isOverdue) {
-          list.push({
-            id: `overdue-${invoice?.id}`,
-            type: "Overdue",
-            label: "Invoice Overdue",
-            date: dueDate,
-            customerName,
-            customerRef,
-            amount: balance,
-            status: "Overdue",
-            color: "#ef4444",
-            dotBg: "#fef2f2",
-          });
-        }
-
-        if (status === "Draft") {
-          list.push({
-            id: `draft-${invoice?.id}`,
-            type: "Draft",
-            label: "Draft Invoice",
-            date,
-            customerName,
-            customerRef,
-            amount: total,
-            status: "Draft",
-            color: "#3b82f6",
-            dotBg: "#dbeafe",
-          });
-        }
-      });
-    });
-
-    if (list.length === 0 && Array.isArray(invoices)) {
-      invoices.forEach((invoice) => {
-        const status = toDisplayStatus(invoice);
-        const date = invoice?.date || invoice?.invoiceDate || "";
-        const total = toNumber(invoice?.total ?? invoice?.totalAmount ?? invoice?.amount);
-
+      if (status === "Partial") {
         list.push({
-          id: `created-${invoice?.id}`,
-          type: "Created",
-          label: "Invoice Created",
-          date,
-          customerName: invoice?.customer?.name || "Unknown Customer",
-          customerRef: invoice?.customer?.referenceCode || "-",
-          amount: total,
-          status,
-          color: "#6d28d9",
-          dotBg: "#f5f3ff",
+          id: `partial-${inv?.id}-${customer.id || customerRef}`,
+          type: "Partial",
+          label: "Partial Payment",
+          date: dateStr,
+          customerName,
+          customerRef,
+          amount: paid,
+          status: "Partial",
+          color: "#f59e0b",
+          dotBg: "#fffbeb",
         });
-      });
-    }
+      }
 
-    return list.sort((a, b) => {
-      const dateA = parseDate(a.date);
-      const dateB = parseDate(b.date);
-      const timeA = dateA ? dateA.getTime() : 0;
-      const timeB = dateB ? dateB.getTime() : 0;
-      return timeB - timeA;
+      if (due && due < today && status !== "Paid") {
+        list.push({
+          id: `overdue-${inv?.id}-${customer.id || customerRef}`,
+          type: "Overdue",
+          label: "Invoice Overdue",
+          date: dueStr,
+          customerName,
+          customerRef,
+          amount: balance > 0 ? balance : total,
+          status: "Overdue",
+          color: "#ef4444",
+          dotBg: "#fef2f2",
+        });
+      }
     });
+
+    return list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }, [customers, invoices]);
 
   const statusColors = {

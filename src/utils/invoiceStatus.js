@@ -41,9 +41,9 @@ export const isPastDue = (dueDate) => {
 };
 
 export const deriveInvoiceStatus = (invoice) => {
-  const status = normalizeInvoiceStatus(invoice?.action);
-  const total = Number(invoice?.totalAmount || invoice?.amount || 0);
-  const paid = Number(invoice?.paidAmount || 0);
+  const status = normalizeInvoiceStatus(invoice?.action || invoice?.status);
+  const total = Number(invoice?.totalAmount || invoice?.total || invoice?.amount || 0);
+  const paid = Number(invoice?.paidAmount || invoice?.paid || 0);
 
   if (total > 0 && paid + 0.000001 >= total) {
     return "paid";

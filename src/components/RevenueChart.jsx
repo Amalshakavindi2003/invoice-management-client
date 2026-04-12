@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { getCustomerInvoices, getInvoiceDate, getInvoicePaid, getInvoiceStatus, getInvoiceTotal } from "../utils/invoiceData";
 import {
   AreaChart,
   Area,
@@ -15,55 +16,38 @@ const toNumber = (value) => Number(value || 0);
 function RevenueChart({ customers = [], invoices = [] }) {
   const monthlyData = useMemo(() => {
     const months = {};
-
     for (let i = 5; i >= 0; i -= 1) {
       const d = new Date();
+      d.setDate(1);
       d.setMonth(d.getMonth() - i);
       const key = d.toLocaleString("default", { month: "short", year: "2-digit" });
-      months[key] = { month: key, billed: 0, collected: 0, outstanding: 0 };
+      months[key] = { month: key, billed: 0, collected: 0 };
     }
 
-    const nestedInvoices = [];
-    (Array.isArray(customers) ? customers : []).forEach((customer) => {
-      const customerInvoices = Array.isArray(customer?.invoiceList)
-        ? customer.invoiceList
-        : Array.isArray(customer?.invoices)
-          ? customer.invoices
-          : [];
-      nestedInvoices.push(...customerInvoices);
-    });
-
-    const sourceInvoices = nestedInvoices.length > 0 ? nestedInvoices : Array.isArray(invoices) ? invoices : [];
+    const sourceInvoices = Array.isArray(invoices) && invoices.length > 0
+      ? invoices
+      : (Array.isArray(customers) ? customers.flatMap((customer) => getCustomerInvoices(customer, invoices)) : []);
 
     sourceInvoices.forEach((invoice) => {
-      const rawDate = invoice?.date || invoice?.invoiceDate;
-      if (!rawDate) {
-        return;
-      }
+      const dateStr = getInvoiceDate(invoice);
+      if (!dateStr) return;
 
-      const date = new Date(rawDate);
-      if (Number.isNaN(date.getTime())) {
-        return;
-      }
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return;
 
-      const key = date.toLocaleString("default", { month: "short", year: "2-digit" });
-      if (!months[key]) {
-        return;
-      }
+      const key = d.toLocaleString("default", { month: "short", year: "2-digit" });
+      if (!months[key]) return;
 
-      const total = toNumber(invoice?.total);
-      const paid = toNumber(invoice?.paid);
-      const status = String(invoice?.status || "");
+      const total = Number(getInvoiceTotal(invoice) || 0);
+      const paid = Number(getInvoicePaid(invoice) || 0);
+      const status = String(getInvoiceStatus(invoice) || "").toLowerCase();
 
       months[key].billed += total;
-
-      if (status === "Paid") {
+      if (status === "paid") {
         months[key].collected += total;
-      } else if (status === "Partial") {
+      } else if (status === "partial") {
         months[key].collected += paid;
       }
-
-      months[key].outstanding = months[key].billed - months[key].collected;
     });
 
     return Object.values(months);
@@ -125,53 +109,20 @@ function RevenueChart({ customers = [], invoices = [] }) {
         }}
       >
         <div>
-          <h3
-            style={{
-              fontSize: "16px",
-              fontWeight: "600",
-              color: "#1f2937",
-              margin: 0,
-            }}
-          >
-            Revenue Overview
-          </h3>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#6b7280",
-              margin: "3px 0 0",
-            }}
-          >
+          <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#1f2937", margin: 0 }}>Revenue Overview</h3>
+          <p style={{ fontSize: "13px", color: "#6b7280", margin: "3px 0 0" }}>
             Last 6 months billing and collection trends
           </p>
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <div
-            style={{
-              background: "#f5f3ff",
-              borderRadius: "8px",
-              padding: "6px 14px",
-              textAlign: "center",
-            }}
-          >
+          <div style={{ background: "#f5f3ff", borderRadius: "8px", padding: "6px 14px", textAlign: "center" }}>
             <div style={{ fontSize: "11px", color: "#7c3aed", fontWeight: "500" }}>Total Billed</div>
-            <div style={{ fontSize: "14px", fontWeight: "700", color: "#6d28d9" }}>
-              {formatCurrency(totalBilled)}
-            </div>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "#6d28d9" }}>{formatCurrency(totalBilled)}</div>
           </div>
-          <div
-            style={{
-              background: "#ecfdf5",
-              borderRadius: "8px",
-              padding: "6px 14px",
-              textAlign: "center",
-            }}
-          >
+          <div style={{ background: "#ecfdf5", borderRadius: "8px", padding: "6px 14px", textAlign: "center" }}>
             <div style={{ fontSize: "11px", color: "#059669", fontWeight: "500" }}>Collected</div>
-            <div style={{ fontSize: "14px", fontWeight: "700", color: "#047857" }}>
-              {formatCurrency(totalCollected)}
-            </div>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "#047857" }}>{formatCurrency(totalCollected)}</div>
           </div>
           <div
             style={{
@@ -216,19 +167,8 @@ function RevenueChart({ customers = [], invoices = [] }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 12, fill: "#9ca3af" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tickFormatter={formatCurrency}
-            tick={{ fontSize: 11, fill: "#9ca3af" }}
-            axisLine={false}
-            tickLine={false}
-            width={60}
-          />
+          <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={60} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
           <Area

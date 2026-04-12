@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import { getCustomerInvoices, getInvoiceDate, getInvoiceDueDate, getInvoicePaid, getInvoiceStatus, getInvoiceTotal, getLatestInvoice, getInvoiceBalance } from "../utils/invoiceData";
 import { removeCustomer, saveCustomer, updateCustomer } from "../Services/api";
 import {
   deriveInvoiceStatus,
@@ -79,43 +80,13 @@ const INVOICE_TABS = [
   { value: "partial", label: "Partial", badge: "#d97706" },
 ];
 
-const getInvoiceStatusForTabs = (invoice) => {
-  if (!invoice) {
-    return null;
-  }
-
-  const explicitStatus = String(invoice?.status || invoice?.action || "").trim().toLowerCase();
-  if (explicitStatus === "partial") {
-    return "partial";
-  }
-  if (explicitStatus === "paid") {
-    return "paid";
-  }
-  if (explicitStatus === "overdue") {
-    return "overdue";
-  }
-  if (explicitStatus === "draft") {
-    return "draft";
-  }
-
-  const derivedStatus = normalizeInvoiceStatus(deriveInvoiceStatus(invoice));
-  if (derivedStatus === "sent" || derivedStatus === "draft") {
-    return "draft";
-  }
-  if (derivedStatus === "paid" || derivedStatus === "overdue") {
-    return derivedStatus;
-  }
-
-  return "draft";
-};
-
-const getLatestStatus = (customer) => {
-  const customerInvoices = customer.invoiceList || customer.invoices || [];
-  if (customerInvoices.length === 0) return null;
-  const sorted = [...customerInvoices].sort((a, b) =>
-    new Date(b.date || b.invoiceDate) - new Date(a.date || a.invoiceDate)
-  );
-  return sorted[0].status;
+const normalizeTabStatus = (status) => {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "paid") return "paid";
+  if (value === "draft") return "draft";
+  if (value === "overdue") return "overdue";
+  if (value === "partial") return "partial";
+  return null;
 };
 
 function CustomerManager({
@@ -124,6 +95,7 @@ function CustomerManager({
   onCustomersChanged,
   onInvoicesChanged,
   onCreateInvoiceForCustomer,
+  showToast,
 }) {
   const [form, setForm] = useState(EmptyCustomer);
   const [editingId, setEditingId] = useState(null);
@@ -134,102 +106,57 @@ function CustomerManager({
   const [searchValue, setSearchValue] = useState("");
   const [selectedInvoiceTab, setSelectedInvoiceTab] = useState("all");
 
-  const invoiceMap = useMemo(() => {
-    const map = new Map();
-
-    (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
-      const nestedId = invoice?.customer?.id;
-      if (nestedId === undefined || nestedId === null) {
-        return;
-      }
-
-      const key = String(nestedId);
-      const existing = map.get(key) || [];
-      existing.push(invoice);
-      map.set(key, existing);
-    });
-
-    map.forEach((customerInvoices, key) => {
-      customerInvoices.sort((a, b) => {
-        const dateA = Date.parse(a.date || "") || 0;
-        const dateB = Date.parse(b.date || "") || 0;
-        if (dateA !== dateB) {
-          return dateB - dateA;
-        }
-        return (b.id || 0) - (a.id || 0);
-      });
-      map.set(key, customerInvoices);
-    });
-
-    return map;
-  }, [invoices]);
-
   const sortedCustomers = useMemo(() => {
     const safeCustomers = Array.isArray(customers) ? customers : [];
     return [...safeCustomers].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [customers]);
 
-  const enrichedCustomers = useMemo(() => {
-    return sortedCustomers.map((customer) => {
-      const customerInvoices = invoiceMap.get(String(customer.id)) || [];
-      const latestInvoice = customerInvoices[0] || null;
-      const latestRawStatus = getLatestStatus(customer);
-      const latestStatus = latestRawStatus ? getInvoiceStatusForTabs({ status: latestRawStatus }) : null;
-
-      return {
-        customer,
-        latestInvoice,
-        latestStatus,
-        invoiceCount: customerInvoices.length,
-      };
-    });
-  }, [sortedCustomers, invoiceMap]);
-
-  const filteredCustomers = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-
-    return enrichedCustomers.filter(({ customer, latestStatus }) => {
-      const text = [
-        customer.referenceCode,
-        customer.name,
-        customer.email,
-        customer.phone,
-        customer.address,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = !normalizedSearch || text.includes(normalizedSearch);
-      if (!matchesSearch) {
-        return false;
-      }
-
-      if (selectedInvoiceTab === "all") {
-        return true;
-      }
-
-      return latestStatus === selectedInvoiceTab;
-    });
-  }, [enrichedCustomers, searchValue, selectedInvoiceTab]);
-
   const tabCounts = useMemo(() => {
-    const counts = {
-      all: enrichedCustomers.length,
-      draft: 0,
-      paid: 0,
-      overdue: 0,
-      partial: 0,
-    };
+    const counts = { all: 0, draft: 0, paid: 0, overdue: 0, partial: 0 };
 
-    enrichedCustomers.forEach(({ latestStatus }) => {
+    sortedCustomers.forEach((customer) => {
+      counts.all += 1;
+
+      const latest = getLatestInvoice(customer, invoices);
+      if (!latest) return;
+
+      const latestStatus = normalizeTabStatus(getInvoiceStatus(latest));
       if (latestStatus && counts[latestStatus] !== undefined) {
         counts[latestStatus] += 1;
       }
     });
 
     return counts;
-  }, [enrichedCustomers]);
+  }, [sortedCustomers, invoices]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = searchValue.trim().toLowerCase();
+
+    let result = sortedCustomers.map((customer) => {
+      const latestInvoice = getLatestInvoice(customer, invoices);
+      return {
+        customer,
+        latestInvoice,
+        latestStatus: latestInvoice ? normalizeTabStatus(getInvoiceStatus(latestInvoice)) : null,
+        invoiceCount: getCustomerInvoices(customer, invoices).length,
+      };
+    });
+
+    if (selectedInvoiceTab !== "all") {
+      result = result.filter(({ latestStatus }) => latestStatus === selectedInvoiceTab);
+    }
+
+    if (q) {
+      result = result.filter(({ customer }) =>
+        (customer.name || "").toLowerCase().includes(q) ||
+        (customer.email || "").toLowerCase().includes(q) ||
+        (customer.customerRef || customer.referenceCode || "").toLowerCase().includes(q) ||
+        (customer.phone || "").includes(q)
+      );
+    }
+
+    return result;
+  }, [sortedCustomers, selectedInvoiceTab, searchValue, invoices]);
 
   const activeCustomerData = useMemo(() => {
     const activeId = selectedCustomerId || filteredCustomers[0]?.customer?.id;
@@ -288,7 +215,11 @@ function CustomerManager({
 
       await onCustomersChanged();
       resetForm();
-      setSuccessMessage(editingId ? "Customer updated successfully." : "Customer added successfully.");
+      const message = editingId ? "Customer updated successfully." : "Customer added successfully.";
+      setSuccessMessage(message);
+      if (typeof showToast === "function") {
+        showToast(message);
+      }
     } catch (error) {
       setErrorMessage(error.message || "Customer operation failed.");
     }
@@ -321,7 +252,11 @@ function CustomerManager({
       if (selectedCustomerId === id) {
         setSelectedCustomerId(null);
       }
-      setSuccessMessage("Customer deleted successfully.");
+      const message = "Customer deleted successfully.";
+      setSuccessMessage(message);
+      if (typeof showToast === "function") {
+        showToast(message);
+      }
     } catch (error) {
       setErrorMessage(error.message || "Unable to delete customer.");
     }
@@ -338,7 +273,11 @@ function CustomerManager({
         await navigator.clipboard.writeText(String(referenceCode));
       }
       setErrorMessage("");
-      setSuccessMessage(`Customer reference ${referenceCode} copied.`);
+      const message = `Customer reference ${referenceCode} copied.`;
+      setSuccessMessage(message);
+      if (typeof showToast === "function") {
+        showToast("Customer reference copied!");
+      }
     } catch (error) {
       setErrorMessage("Could not copy customer reference. Please copy manually.");
     }
@@ -404,38 +343,10 @@ function CustomerManager({
       </Typography>
 
       <FormRow>
-        <TextField
-          name="name"
-          label="Name"
-          value={form.name}
-          onChange={onChange}
-          variant="outlined"
-          size="small"
-        />
-        <TextField
-          name="email"
-          label="Email"
-          value={form.email}
-          onChange={onChange}
-          variant="outlined"
-          size="small"
-        />
-        <TextField
-          name="phone"
-          label="Phone"
-          value={form.phone}
-          onChange={onChange}
-          variant="outlined"
-          size="small"
-        />
-        <TextField
-          name="address"
-          label="Address"
-          value={form.address}
-          onChange={onChange}
-          variant="outlined"
-          size="small"
-        />
+        <TextField name="name" label="Name" value={form.name} onChange={onChange} variant="outlined" size="small" />
+        <TextField name="email" label="Email" value={form.email} onChange={onChange} variant="outlined" size="small" />
+        <TextField name="phone" label="Phone" value={form.phone} onChange={onChange} variant="outlined" size="small" />
+        <TextField name="address" label="Address" value={form.address} onChange={onChange} variant="outlined" size="small" />
         <Box sx={{ display: "flex", gap: 1 }}>
           <Button variant="contained" onClick={submitCustomer}>
             {editingId ? "Update" : "Add"}
@@ -451,7 +362,7 @@ function CustomerManager({
       <ControlsRow>
         <TextField
           label="Search customers"
-          placeholder="Customer ref, name, email, phone, address"
+          placeholder="Customer ref, name, email, phone"
           size="small"
           value={searchValue}
           onChange={(event) => setSearchValue(event.target.value)}
@@ -489,133 +400,148 @@ function CustomerManager({
           </TableRow>
         </TableHead>
         <TableBody>
-          {filteredCustomers.map(({ customer, latestInvoice, invoiceCount }) => {
-            const isSelected = activeCustomerData?.customer?.id === customer.id;
-            const invoiceStatus = latestInvoice ? getInvoiceStatusForTabs(latestInvoice) : null;
-            const normalizedStatus = normalizeInvoiceStatus(invoiceStatus);
-            const total = Number(latestInvoice?.total ?? latestInvoice?.totalAmount ?? latestInvoice?.amount ?? 0);
-            const paid = Number(latestInvoice?.paid ?? latestInvoice?.paidAmount ?? 0);
-            const balance = Number(latestInvoice?.balance ?? Math.max(0, total - paid));
-            const isOverdue = invoiceStatus === "overdue";
+          {filteredCustomers.length > 0 ? (
+            filteredCustomers.map(({ customer, latestInvoice, invoiceCount }, index) => {
+              const isSelected = activeCustomerData?.customer?.id === customer.id;
+              const invoiceStatus = latestInvoice
+                ? normalizeTabStatus(getInvoiceStatus(latestInvoice)) || normalizeInvoiceStatus(deriveInvoiceStatus(latestInvoice))
+                : null;
+              const normalizedStatus = normalizeInvoiceStatus(invoiceStatus);
+              const total = Number(getInvoiceTotal(latestInvoice) || 0);
+              const paid = Number(getInvoicePaid(latestInvoice) || 0);
+              const balance = Number(getInvoiceBalance(latestInvoice) || Math.max(0, total - paid));
+              const isOverdue = invoiceStatus === "overdue";
+              const baseBackground = isOverdue ? "#fff4f3" : index % 2 === 0 ? "#fff" : "#fafafa";
 
-            return (
-              <TableRow
-                key={customer.id}
-                hover
-                selected={isSelected}
-                onClick={() => setSelectedCustomerId(customer.id)}
-                sx={{
-                  cursor: "pointer",
-                  backgroundColor: isOverdue ? "#fff4f3" : undefined,
-                }}
-              >
-                <TableCell>
-                  <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-                    <Typography sx={{ fontWeight: 600 }}>{customer.referenceCode || "Generating..."}</Typography>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      disabled={!customer.referenceCode}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        copyCustomerReference(customer.referenceCode);
-                      }}
-                    >
-                      Copy Ref
-                    </Button>
-                  </Box>
-                </TableCell>
-                <TableCell>{customer.name}</TableCell>
-                <TableCell>{customer.email}</TableCell>
-                <TableCell>{customer.phone}</TableCell>
-                <TableCell>{customer.address}</TableCell>
-                <TableCell>{invoiceCount}</TableCell>
-                <TableCell>{latestInvoice?.date || "No Invoice"}</TableCell>
-                <TableCell>{latestInvoice?.dueDate || "-"}</TableCell>
-                <TableCell>
-                  {latestInvoice ? (
-                    <Chip
-                      size="small"
-                      color={invoiceStatus === "partial" ? "warning" : statusColor(normalizedStatus)}
-                      label={toTitleCase(invoiceStatus)}
-                    />
-                  ) : (
-                    "No Invoice"
-                  )}
-                </TableCell>
-                <TableCell>{latestInvoice ? formatCurrency(total) : "No Invoice"}</TableCell>
-                <TableCell>{latestInvoice ? formatCurrency(paid) : "No Invoice"}</TableCell>
-                <TableCell>
-                  {latestInvoice ? (
-                    <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 600 }}>
-                      {formatCurrency(balance)}
-                    </Typography>
-                  ) : (
-                    "No Invoice"
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      disabled={!latestInvoice}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedInvoice(latestInvoice);
-                      }}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (typeof onCreateInvoiceForCustomer === "function") {
-                          onCreateInvoiceForCustomer(customer.id);
-                        }
-                      }}
-                    >
-                      Add Invoice
-                    </Button>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startEdit(customer);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="error"
-                      disabled={invoiceCount > 0}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        deleteCustomerById(customer.id);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            );
-          })}
+              return (
+                <TableRow
+                  key={customer.id}
+                  hover
+                  selected={isSelected}
+                  onClick={() => setSelectedCustomerId(customer.id)}
+                  style={{ backgroundColor: baseBackground }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.backgroundColor = "#faf5ff";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.backgroundColor = baseBackground;
+                  }}
+                  sx={{ cursor: "pointer" }}
+                >
+                  <TableCell>
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                      <Typography sx={{ fontWeight: 600 }}>{customer.referenceCode || customer.customerRef || "Generating..."}</Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!(customer.referenceCode || customer.customerRef)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          copyCustomerReference(customer.referenceCode || customer.customerRef);
+                        }}
+                      >
+                        Copy Ref
+                      </Button>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{customer.name}</TableCell>
+                  <TableCell>{customer.email}</TableCell>
+                  <TableCell>{customer.phone}</TableCell>
+                  <TableCell>{customer.address}</TableCell>
+                  <TableCell>{invoiceCount}</TableCell>
+                  <TableCell>{latestInvoice ? getInvoiceDate(latestInvoice) || "-" : "No Invoice"}</TableCell>
+                  <TableCell>{latestInvoice ? getInvoiceDueDate(latestInvoice) || "-" : "-"}</TableCell>
+                  <TableCell>
+                    {latestInvoice ? (
+                      <Chip
+                        size="small"
+                        color={invoiceStatus === "partial" ? "warning" : statusColor(normalizedStatus)}
+                        label={toTitleCase(invoiceStatus)}
+                      />
+                    ) : (
+                      "No Invoice"
+                    )}
+                  </TableCell>
+                  <TableCell>{latestInvoice ? formatCurrency(total) : "No Invoice"}</TableCell>
+                  <TableCell>{latestInvoice ? formatCurrency(paid) : "No Invoice"}</TableCell>
+                  <TableCell>
+                    {latestInvoice ? (
+                      <Typography sx={{ color: balance > 0 ? "#b45309" : "#15803d", fontWeight: 600 }}>
+                        {formatCurrency(balance)}
+                      </Typography>
+                    ) : (
+                      "No Invoice"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!latestInvoice}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedInvoice(latestInvoice);
+                        }}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (typeof onCreateInvoiceForCustomer === "function") {
+                            onCreateInvoiceForCustomer(customer.id);
+                          }
+                        }}
+                      >
+                        Add Invoice
+                      </Button>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          startEdit(customer);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        disabled={invoiceCount > 0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          deleteCustomerById(customer.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          ) : (
+            <TableRow>
+              <TableCell colSpan={14} style={{ textAlign: "center", padding: "48px 20px", color: "#9ca3af" }}>
+                <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div>
+                <div style={{ fontSize: "15px", fontWeight: "500", color: "#6b7280", marginBottom: "4px" }}>
+                  No customers found
+                </div>
+                <div style={{ fontSize: "13px" }}>Try a different search or filter</div>
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </StyledTable>
-
-      {!filteredCustomers.length && (
-        <Typography sx={{ mt: 1.5, color: "#666" }}>No customers match current filters.</Typography>
-      )}
 
       <InvoiceDetailsDialog
         invoice={selectedInvoice}
