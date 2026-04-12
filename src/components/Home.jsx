@@ -54,8 +54,8 @@ function Home() {
 
   const loadInvoices = async () => {
     try {
-      const response = await getAllInvoice();
-      setInvoices(Array.isArray(response?.data) ? response.data : []);
+      const data = await getAllInvoice();
+      setInvoices(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch invoices:", error.message);
       setInvoices([]);
@@ -65,10 +65,13 @@ function Home() {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const response = await getAllCustomers();
-      setCustomers(Array.isArray(response?.data) ? response.data : []);
+      const data = await getAllCustomers();
+      if (data) {
+        console.log("Loaded customers:", data);
+        setCustomers(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
-      console.error("Failed to fetch customers:", error.message);
+      console.error("Error loading customers:", error.message);
       setCustomers([]);
     } finally {
       setLoading(false);
@@ -383,7 +386,7 @@ function Home() {
                     const ref = getCustomerRef(c) || String(c.id);
                     return (
                       <option key={ref} value={ref}>
-                        {ref} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {c.name}
+                        {ref} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â {c.name}
                       </option>
                     );
                   })}
@@ -617,7 +620,7 @@ function Home() {
                   >
                     Bill To
                   </div>
-                  <div style={{ fontWeight: "600", fontSize: "13px" }}>{selectedCustomer?.name || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</div>
+                  <div style={{ fontWeight: "600", fontSize: "13px" }}>{selectedCustomer?.name || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</div>
                   <div style={{ color: "#6b7280", fontSize: "11px" }}>{selectedCustomer?.email || ""}</div>
                   <div style={{ color: "#6b7280", fontSize: "11px" }}>{selectedCustomer?.phone || ""}</div>
                 </div>
@@ -625,11 +628,11 @@ function Home() {
                 <div style={{ display: "flex", gap: "16px", marginBottom: "16px", fontSize: "11px" }}>
                   <div>
                     <span style={{ color: "#9ca3af" }}>Date: </span>
-                    {invoiceDate || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                    {invoiceDate || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}
                   </div>
                   <div>
                     <span style={{ color: "#9ca3af" }}>Due: </span>
-                    {dueDate || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                    {dueDate || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}
                   </div>
                 </div>
 
@@ -645,7 +648,7 @@ function Home() {
                       key={`preview-${i}`}
                       style={{ display: "flex", fontSize: "11px", padding: "4px 0", borderBottom: "1px solid #f9fafb" }}
                     >
-                      <span style={{ flex: 2, color: "#374151" }}>{item.description || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</span>
+                      <span style={{ flex: 2, color: "#374151" }}>{item.description || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</span>
                       <span style={{ flex: 1, textAlign: "right" }}>{item.qty}</span>
                       <span style={{ flex: 1, textAlign: "right" }}>Rs {Number(item.unitPrice).toLocaleString()}</span>
                       <span style={{ flex: 1, textAlign: "right", fontWeight: "600" }}>
@@ -707,7 +710,7 @@ function Home() {
             animation: "slideIn 0.3s ease",
           }}
         >
-          ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ {toast}
+          ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ {toast}
         </div>
       )}
     </Box>

@@ -61,9 +61,9 @@ function CustomerInvoicePortal() {
       }
 
       setLoading(true);
-      const [customersRes, invoicesRes] = await Promise.all([getAllCustomers(), getAllInvoice()]);
-      const customers = Array.isArray(customersRes?.data) ? customersRes.data : [];
-      const allInvoices = Array.isArray(invoicesRes?.data) ? invoicesRes.data : [];
+      const [customersData, invoicesData] = await Promise.all([getAllCustomers(), getAllInvoice()]);
+      const customers = Array.isArray(customersData) ? customersData : [];
+      const allInvoices = Array.isArray(invoicesData) ? invoicesData : [];
 
       const matchedCustomer = customers.find(
         (item) => String(item.referenceCode || "").trim().toUpperCase() === normalizedReference
@@ -325,9 +325,9 @@ function CustomerInvoicePortal() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â§ {customer.email}</span>
-                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â¾ {customer.phone}</span>
-                  <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â {customer.address}</span>
+                  <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ {customer.email}</span>
+                  <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ {customer.phone}</span>
+                  <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â {customer.address}</span>
                 </div>
               </div>
 
@@ -421,8 +421,8 @@ function CustomerInvoicePortal() {
                         flexWrap: "wrap",
                       }}
                     >
-                      <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Issued: {formatDate(invoice.date)}</span>
-                      <span>ÃƒÂ¢Ã‚ÂÃ‚Â° Due: {formatDate(invoice.dueDate)}</span>
+                      <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Issued: {formatDate(invoice.date)}</span>
+                      <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° Due: {formatDate(invoice.dueDate)}</span>
                     </div>
                   </div>
 
