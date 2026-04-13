@@ -1,136 +1,68 @@
-import { logout } from "../utils/auth";
+const BASE_URL = "http://localhost:8080";
 
-const BASE = (process.env.REACT_APP_API_URL || "http://localhost:8080").replace(/\/+$/, "");
+const request = async (path, options = {}) => {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
 
-const parseJsonSafely = async (response) => {
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+
+  if (response.status === 204) {
+    return true;
+  }
+
+  const text = await response.text();
+  if (!text) {
     return null;
   }
 
   try {
-    return await response.json();
+    return JSON.parse(text);
   } catch {
-    return null;
+    return text;
   }
-};
-
-const extractErrorMessage = (status, data, fallback) => {
-  if (typeof data === "string" && data.trim()) {
-    return data;
-  }
-
-  if (data?.message) {
-    return data.message;
-  }
-
-  if (data?.error) {
-    return data.error;
-  }
-
-  return fallback || `Request failed with status ${status}`;
-};
-
-export const authFetch = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("ei_token");
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (response.status === 401 || response.status === 403) {
-    logout();
-    return null;
-  }
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  const data = await parseJsonSafely(response);
-
-  if (!response.ok) {
-    throw new Error(extractErrorMessage(response.status, data, "Request failed"));
-  }
-
-  return data;
 };
 
 const api = {
-  getCustomers: () => authFetch("/customer"),
-  addCustomer: (data) => authFetch("/customer", { method: "POST", body: JSON.stringify(data) }),
-  updateCustomer: (id, data) => authFetch(`/customer/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteCustomer: (id) => authFetch(`/customer/${id}`, { method: "DELETE" }),
+  getCustomers: async () => request("/customer"),
+  addCustomer: async (data) => request("/customer", { method: "POST", body: JSON.stringify(data) }),
+  updateCustomer: async (id, data) => request(`/customer/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteCustomer: async (id) => request(`/customer/${id}`, { method: "DELETE" }),
 
-  getInvoices: () => authFetch("/invoice"),
-  addInvoice: (data) => authFetch("/invoice", { method: "POST", body: JSON.stringify(data) }),
-  updateInvoice: (id, data) => authFetch(`/invoice/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteInvoice: (id) => authFetch(`/invoice/${id}`, { method: "DELETE" }),
+  getInvoices: async () => request("/invoice"),
+  addInvoice: async (data) => request("/invoice", { method: "POST", body: JSON.stringify(data) }),
+  updateInvoice: async (id, data) => request(`/invoice/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteInvoice: async (id) => request(`/invoice/${id}`, { method: "DELETE" }),
 
   getCustomerByRef: async (ref) => {
-    const customers = await fetch(`${BASE}/customer`).then((response) => response.json());
+    const customers = await request("/customer");
     if (!Array.isArray(customers)) {
       return null;
     }
 
-    return customers.find((customer) => String(customer.referenceCode || customer.customerRef || "").trim().toUpperCase() === String(ref || "").trim().toUpperCase()) || null;
+    return customers.find((customer) =>
+      String(customer.referenceCode || customer.customerRef || "").trim().toUpperCase() ===
+      String(ref || "").trim().toUpperCase()
+    ) || null;
   },
 };
 
-export async function saveInvoice(payload) {
-  return api.addInvoice(payload);
-}
-
-export const getAllInvoice = async () => api.getInvoices();
-
-export async function deleteInvoice(id) {
-  return api.deleteInvoice(id);
-}
-
-export async function updateInvoiceStatus(id, status) {
-  return authFetch(`/invoice/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status }),
-  });
-}
-
-export async function sendInvoiceReminder(id) {
-  return authFetch(`/invoice/${id}/reminder`, {
-    method: "POST",
-  });
-}
-
-export async function recordInvoicePayment(id, payload) {
-  return authFetch(`/invoice/${id}/payment`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function saveCustomer(payload) {
-  return api.addCustomer(payload);
-}
-
-export async function getAllCustomers() {
-  return api.getCustomers();
-}
-
-export async function updateCustomer(id, payload) {
-  return api.updateCustomer(id, payload);
-}
-
-export async function removeCustomer(id) {
-  return api.deleteCustomer(id);
-}
+export const getAllCustomers = api.getCustomers;
+export const saveCustomer = api.addCustomer;
+export const updateCustomer = api.updateCustomer;
+export const removeCustomer = api.deleteCustomer;
+export const getAllInvoice = api.getInvoices;
+export const saveInvoice = api.addInvoice;
+export const updateInvoiceStatus = async (id, status) => request(`/invoice/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
+export const deleteInvoice = api.deleteInvoice;
+export const sendInvoiceReminder = async (id) => request(`/invoice/${id}/reminder`, { method: "POST" });
+export const recordInvoicePayment = async (id, payload) => request(`/invoice/${id}/payment`, { method: "POST", body: JSON.stringify(payload) });
 
 export { api };
 export default api;
