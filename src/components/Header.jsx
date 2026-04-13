@@ -1,22 +1,10 @@
-import { AppBar, Box, Button, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Button, Toolbar } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 
-function Header({ user: userProp, onLogout }) {
+function Header() {
   const location = useLocation();
   const logo = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuCS8_9DX_Htx0RJKRFyHn1-zVOIZxT-PMl_AdNjsM&s";
-  const user = userProp || JSON.parse(localStorage.getItem("ei_user") || "null");
   const isActive = (path) => location.pathname === path;
-
-  const handleLogout = () => {
-    localStorage.removeItem("ei_token");
-    localStorage.removeItem("ei_user");
-
-    if (typeof onLogout === "function") {
-      onLogout();
-    }
-
-    window.location.href = "/login";
-  };
 
   return (
     <AppBar position="static" color="secondary">
@@ -48,47 +36,6 @@ function Header({ user: userProp, onLogout }) {
               Invoices
             </span>
           </Button>
-
-          {user && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, ml: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                  }}
-                >
-                  {(user.fullName || "A").charAt(0).toUpperCase()}
-                </Box>
-                <Typography sx={{ color: "#f5f3ff", fontSize: "13px", fontWeight: 500 }}>
-                  {user.fullName || user.email}
-                </Typography>
-              </Box>
-              <Button
-                onClick={handleLogout}
-                sx={{
-                  background: "rgba(255,255,255,0.15)",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  borderRadius: "6px",
-                  padding: "6px 14px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  textTransform: "none",
-                }}
-              >
-                Sign Out
-              </Button>
-            </Box>
-          )}
         </Box>
       </Toolbar>
     </AppBar>

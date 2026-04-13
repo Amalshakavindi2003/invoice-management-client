@@ -49,10 +49,20 @@ function Login({ onLoginSuccess }) {
         body: JSON.stringify(body)
       });
 
-      const data = await res.json();
+      const raw = await res.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
 
       if (!res.ok) {
-        setError(data.error || data.message || 'Login failed. Check your credentials.');
+        setError(
+          data.error ||
+          data.message ||
+          `Request failed (${res.status}). Please try again.`
+        );
         return;
       }
 
