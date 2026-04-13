@@ -1,5 +1,5 @@
 import { Box, Button, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AddInvoice from "./AddInvoice";
 import ActivityTimeline from "./ActivityTimeline";
 import CustomerManager from "./CustomerManager";
@@ -7,10 +7,28 @@ import Reports from "./Reports";
 import api from "../Services/api";
 
 const DASHBOARD_TABS = [
-  { key: "reports", label: "Reports", icon: "📊" },
-  { key: "customers", label: "Customers", icon: "👥" },
-  { key: "activity", label: "Activity", icon: "🕒" },
+  { key: "reports", label: "Reports", icon: "RPT" },
+  { key: "customers", label: "Customers", icon: "CUS" },
+  { key: "activity", label: "Activity", icon: "ACT" },
 ];
+
+const normalizeList = (data, fallbackKeys = []) => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  for (const key of fallbackKeys) {
+    if (Array.isArray(data[key])) {
+      return data[key];
+    }
+  }
+
+  return [];
+};
 
 function Home() {
   const [customers, setCustomers] = useState([]);
@@ -20,25 +38,7 @@ function Home() {
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceCustomerId, setInvoiceCustomerId] = useState(null);
 
-  const normalizeList = (data, fallbackKeys = []) => {
-    if (Array.isArray(data)) {
-      return data;
-    }
-
-    if (!data || typeof data !== "object") {
-      return [];
-    }
-
-    for (const key of fallbackKeys) {
-      if (Array.isArray(data[key])) {
-        return data[key];
-      }
-    }
-
-    return [];
-  };
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getCustomers();
@@ -49,9 +49,9 @@ function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       const data = await api.getInvoices();
       setInvoices(normalizeList(data, ["invoices", "content", "data"]));
@@ -59,12 +59,12 @@ function Home() {
       console.error("Failed to fetch invoices:", error);
       setInvoices([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadCustomers();
     loadInvoices();
-  }, []);
+  }, [loadCustomers, loadInvoices]);
 
   const handleCustomersChanged = async () => {
     await loadCustomers();
