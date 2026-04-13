@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { saveInvoice } from "../Services/api";
+import api from "../Services/api";
 import { VALID_INVOICE_STATUSES, normalizeInvoiceStatus, toTitleCase } from "../utils/invoiceStatus";
 
 const Component = styled(Box)(() => ({
@@ -196,7 +196,7 @@ function AddInvoice({ setAddInvoice, customers, onSaved, initialCustomerId = nul
         return;
       }
 
-      await saveInvoice({
+      await api.addInvoice({
         customer: { id: Number(invoice.customerId) },
         vendor: selectedCustomer?.name || "",
         product: normalizedItems[0]?.name || "",

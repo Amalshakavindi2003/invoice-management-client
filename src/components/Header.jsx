@@ -1,13 +1,22 @@
 import { AppBar, Box, Button, Toolbar, Typography } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
-import { getUser, logout } from "../utils/auth";
 
-function Header({ user: userProp }) {
+function Header({ user: userProp, onLogout }) {
   const location = useLocation();
   const logo = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuCS8_9DX_Htx0RJKRFyHn1-zVOIZxT-PMl_AdNjsM&s";
-
-  const user = userProp || getUser();
+  const user = userProp || JSON.parse(localStorage.getItem("ei_user") || "null");
   const isActive = (path) => location.pathname === path;
+
+  const handleLogout = () => {
+    localStorage.removeItem("ei_token");
+    localStorage.removeItem("ei_user");
+
+    if (typeof onLogout === "function") {
+      onLogout();
+    }
+
+    window.location.href = "/login";
+  };
 
   return (
     <AppBar position="static" color="secondary">
@@ -64,7 +73,7 @@ function Header({ user: userProp }) {
                 </Typography>
               </Box>
               <Button
-                onClick={logout}
+                onClick={handleLogout}
                 sx={{
                   background: "rgba(255,255,255,0.15)",
                   color: "#fff",
