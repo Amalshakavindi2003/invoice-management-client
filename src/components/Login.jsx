@@ -1,316 +1,291 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 
 function Login({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirm: "" });
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handle = (event) => {
-    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
-  };
+  const [showPass, setShowPass] = useState(false);
 
   const submit = async () => {
-    setError("");
+    setError('');
 
-    if (isRegister) {
-      if (!form.fullName.trim()) {
-        setError("Full name is required");
-        return;
-      }
-
-      if (form.password !== form.confirm) {
-        setError("Passwords do not match");
-        return;
-      }
-
-      if (form.password.length < 6) {
-        setError("Password must be at least 6 characters");
-        return;
-      }
+    if (!email || !password) {
+      setError('Email and password are required');
+      return;
     }
 
-    if (!form.email.includes("@")) {
-      setError("Enter a valid email");
-      return;
+    if (isRegister) {
+      if (!fullName.trim()) {
+        setError('Full name is required');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      const endpoint = isRegister ? "/api/auth/register" : "/api/auth/login";
-      const payload = isRegister
-        ? { fullName: form.fullName, email: form.email, password: form.password }
-        : { email: form.email, password: form.password };
+      const url = isRegister
+        ? 'http://localhost:8080/api/auth/register'
+        : 'http://localhost:8080/api/auth/login';
 
-      const res = await fetch(`http://localhost:8080${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const body = isRegister
+        ? { fullName, email, password }
+        : { email, password };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
 
       const data = await res.json();
+
       if (!res.ok) {
-        setError(data?.error || "Something went wrong");
+        setError(data.error || data.message || 'Login failed. Check your credentials.');
         return;
       }
 
-      localStorage.setItem("ei_token", data.token);
-      localStorage.setItem(
-        "ei_user",
-        JSON.stringify({
-          email: data.email,
-          fullName: data.fullName,
-          role: data.role,
-        })
-      );
+      localStorage.setItem('ei_token', data.token);
+      localStorage.setItem('ei_user', JSON.stringify({
+        email: data.email,
+        fullName: data.fullName,
+        role: data.role
+      }));
 
-      onLoginSuccess(data);
+      if (onLoginSuccess) onLoginSuccess(data);
     } catch (err) {
-      setError("Cannot connect to server. Is Spring Boot running?");
+      setError(
+        'Cannot connect to server. ' +
+        'Make sure Spring Boot is running on port 8080.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === "Enter") {
-      submit();
-    }
-  };
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #6d28d9 0%, #4338ca 50%, #1d4ed8 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: "10%",
-          left: "5%",
-          width: 200,
-          height: 200,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.05)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "10%",
-          right: "5%",
-          width: 300,
-          height: 300,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.05)",
-          pointerEvents: "none",
-        }}
-      />
-
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "20px",
-          padding: "40px",
-          width: "100%",
-          maxWidth: "420px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "28px" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #6d28d9, #4338ca)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontSize: "18px",
-              fontWeight: "800",
-            }}
-          >
-            E
-          </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #6d28d9 0%, #4338ca 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}>
+      <div style={{
+        background: '#fff',
+        borderRadius: '20px',
+        padding: '40px',
+        width: '100%',
+        maxWidth: '420px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '28px'
+        }}>
+          <div style={{
+            width: 40, height: 40,
+            borderRadius: '10px',
+            background: '#6d28d9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: '20px',
+            fontWeight: '800'
+          }}>E</div>
           <div>
-            <div style={{ fontSize: "18px", fontWeight: "700", color: "#1f2937", lineHeight: 1 }}>EasyInvoice</div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>Invoice Management System</div>
+            <div style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#1f2937'
+            }}>
+              EasyInvoice
+            </div>
+            <div style={{
+              fontSize: '11px',
+              color: '#9ca3af'
+            }}>
+              Invoice Management System
+            </div>
           </div>
         </div>
 
-        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#1f2937", margin: "0 0 6px" }}>
-          {isRegister ? "Create account" : "Welcome back"}
+        <h2 style={{
+          fontSize: '22px',
+          fontWeight: '700',
+          color: '#1f2937',
+          margin: '0 0 6px'
+        }}>
+          {isRegister ? 'Create account' : 'Welcome back'}
         </h2>
-        <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 24px" }}>
-          {isRegister ? "Set up your admin account to get started" : "Sign in to your admin dashboard"}
+        <p style={{
+          fontSize: '14px',
+          color: '#6b7280',
+          margin: '0 0 24px'
+        }}>
+          {isRegister
+            ? 'Set up your admin account'
+            : 'Sign in to your admin dashboard'}
         </p>
 
         {error && (
-          <div
-            style={{
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#dc2626",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              marginBottom: "16px",
-            }}
-          >
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            fontSize: '13px',
+            marginBottom: '16px'
+          }}>
             {error}
           </div>
         )}
 
         {isRegister && (
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{ fontSize: "13px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "6px" }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{
+              fontSize: '13px',
+              fontWeight: '500',
+              color: '#374151',
+              display: 'block',
+              marginBottom: '6px'
+            }}>
               Full Name
             </label>
             <input
-              name="fullName"
               type="text"
-              placeholder="Amalsha Kavindi"
-              value={form.fullName}
-              onChange={handle}
-              onKeyDown={handleKeyDown}
+              placeholder="Your full name"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
               style={{
-                width: "100%",
-                padding: "11px 14px",
-                border: "1.5px solid #e5e7eb",
-                borderRadius: "8px",
-                fontSize: "14px",
-                outline: "none",
-                transition: "border .15s",
-                boxSizing: "border-box",
-              }}
-              onFocus={(event) => {
-                event.target.style.borderColor = "#6d28d9";
-              }}
-              onBlur={(event) => {
-                event.target.style.borderColor = "#e5e7eb";
+                width: '100%',
+                padding: '11px 14px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
         )}
 
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ fontSize: "13px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "6px" }}>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#374151',
+            display: 'block',
+            marginBottom: '6px'
+          }}>
             Email address
           </label>
           <input
-            name="email"
             type="email"
             placeholder="admin@example.com"
-            value={form.email}
-            onChange={handle}
-            onKeyDown={handleKeyDown}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
             style={{
-              width: "100%",
-              padding: "11px 14px",
-              border: "1.5px solid #e5e7eb",
-              borderRadius: "8px",
-              fontSize: "14px",
-              outline: "none",
-              transition: "border .15s",
-              boxSizing: "border-box",
-            }}
-            onFocus={(event) => {
-              event.target.style.borderColor = "#6d28d9";
-            }}
-            onBlur={(event) => {
-              event.target.style.borderColor = "#e5e7eb";
+              width: '100%',
+              padding: '11px 14px',
+              border: '1.5px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '14px',
+              outline: 'none',
+              boxSizing: 'border-box'
             }}
           />
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ fontSize: "13px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "6px" }}>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#374151',
+            display: 'block',
+            marginBottom: '6px'
+          }}>
             Password
           </label>
-          <div style={{ position: "relative" }}>
+          <div style={{ position: 'relative' }}>
             <input
-              name="password"
-              type={showPassword ? "text" : "password"}
+              type={showPass ? 'text' : 'password'}
               placeholder="At least 6 characters"
-              value={form.password}
-              onChange={handle}
-              onKeyDown={handleKeyDown}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
               style={{
-                width: "100%",
-                padding: "11px 44px 11px 14px",
-                border: "1.5px solid #e5e7eb",
-                borderRadius: "8px",
-                fontSize: "14px",
-                outline: "none",
-                transition: "border .15s",
-                boxSizing: "border-box",
-              }}
-              onFocus={(event) => {
-                event.target.style.borderColor = "#6d28d9";
-              }}
-              onBlur={(event) => {
-                event.target.style.borderColor = "#e5e7eb";
+                width: '100%',
+                padding: '11px 44px 11px 14px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
             <button
               type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
+              onClick={() => setShowPass(!showPass)}
               style={{
-                position: "absolute",
-                right: "12px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "12px",
-                color: "#6b7280",
-                padding: "0",
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '14px',
+                color: '#9ca3af'
               }}
             >
-              {showPassword ? "HIDE" : "SHOW"}
+              {showPass ? 'HIDE' : 'SHOW'}
             </button>
           </div>
         </div>
 
         {isRegister && (
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{ fontSize: "13px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "6px" }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{
+              fontSize: '13px',
+              fontWeight: '500',
+              color: '#374151',
+              display: 'block',
+              marginBottom: '6px'
+            }}>
               Confirm Password
             </label>
             <input
-              name="confirm"
-              type={showPassword ? "text" : "password"}
+              type={showPass ? 'text' : 'password'}
               placeholder="Repeat your password"
-              value={form.confirm}
-              onChange={handle}
-              onKeyDown={handleKeyDown}
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
               style={{
-                width: "100%",
-                padding: "11px 14px",
-                border: "1.5px solid #e5e7eb",
-                borderRadius: "8px",
-                fontSize: "14px",
-                outline: "none",
-                transition: "border .15s",
-                boxSizing: "border-box",
-              }}
-              onFocus={(event) => {
-                event.target.style.borderColor = "#6d28d9";
-              }}
-              onBlur={(event) => {
-                event.target.style.borderColor = "#e5e7eb";
+                width: '100%',
+                padding: '11px 14px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -321,55 +296,68 @@ function Login({ onLoginSuccess }) {
           onClick={submit}
           disabled={loading}
           style={{
-            width: "100%",
-            background: loading ? "#a78bfa" : "linear-gradient(135deg, #6d28d9, #4338ca)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "10px",
-            padding: "13px",
-            fontSize: "15px",
-            fontWeight: "600",
-            cursor: loading ? "not-allowed" : "pointer",
-            marginTop: "8px",
+            width: '100%',
+            background: loading ? '#a78bfa' : '#6d28d9',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '13px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            marginTop: '8px'
           }}
         >
-          {loading ? "Please wait..." : isRegister ? "Create Account" : "Sign In"}
+          {loading
+            ? 'Please wait...'
+            : isRegister ? 'Create Account' : 'Sign In'}
         </button>
 
-        <div style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#6b7280" }}>
-          {isRegister ? "Already have an account? " : "Don't have an account? "}
+        <div style={{
+          textAlign: 'center',
+          marginTop: '20px',
+          fontSize: '13px',
+          color: '#6b7280'
+        }}>
+          {isRegister
+            ? 'Already have an account? '
+            : "Don't have an account? "}
           <button
             type="button"
             onClick={() => {
-              setIsRegister((prev) => !prev);
-              setError("");
-              setForm({ fullName: "", email: "", password: "", confirm: "" });
+              setIsRegister(!isRegister);
+              setError('');
             }}
             style={{
-              background: "none",
-              border: "none",
-              color: "#6d28d9",
-              fontWeight: "600",
-              cursor: "pointer",
-              fontSize: "13px",
+              background: 'none',
+              border: 'none',
+              color: '#6d28d9',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '13px'
             }}
           >
-            {isRegister ? "Sign in" : "Create account"}
+            {isRegister ? 'Sign in' : 'Create account'}
           </button>
         </div>
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "16px",
-            paddingTop: "16px",
-            borderTop: "1px solid #f3f4f6",
-            fontSize: "12px",
-            color: "#9ca3af",
-          }}
-        >
-          Are you a customer?{" "}
-          <a href="/my-invoices" style={{ color: "#6d28d9", textDecoration: "none", fontWeight: "500" }}>
+        <div style={{
+          textAlign: 'center',
+          marginTop: '16px',
+          paddingTop: '16px',
+          borderTop: '1px solid #f3f4f6',
+          fontSize: '12px',
+          color: '#9ca3af'
+        }}>
+          Are you a customer?{' '}
+          <a
+            href="/my-invoices"
+            style={{
+              color: '#6d28d9',
+              textDecoration: 'none',
+              fontWeight: '500'
+            }}
+          >
             View your invoices
           </a>
         </div>

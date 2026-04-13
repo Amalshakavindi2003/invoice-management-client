@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { getCustomerInvoices, getInvoiceDate, getInvoiceDueDate, getInvoicePaid, getInvoiceStatus, getInvoiceTotal, getLatestInvoice, getInvoiceBalance } from "../utils/invoiceData";
-import { removeCustomer, saveCustomer, updateCustomer } from "../Services/api";
+import api from "../Services/api";
 import {
   deriveInvoiceStatus,
   normalizeInvoiceStatus,
@@ -208,9 +208,9 @@ function CustomerManager({
       };
 
       if (editingId) {
-        await updateCustomer(editingId, payload);
+        await api.updateCustomer(editingId, payload);
       } else {
-        await saveCustomer(payload);
+        await api.addCustomer(payload);
       }
 
       await onCustomersChanged();
@@ -241,7 +241,7 @@ function CustomerManager({
   const deleteCustomerById = async (id) => {
     try {
       setSuccessMessage("");
-      await removeCustomer(id);
+      await api.deleteCustomer(id);
       await Promise.all([
         onCustomersChanged(),
         typeof onInvoicesChanged === "function" ? onInvoicesChanged() : Promise.resolve(),

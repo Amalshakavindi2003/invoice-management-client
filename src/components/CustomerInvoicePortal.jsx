@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Chip, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getAllCustomers, getAllInvoice } from "../Services/api";
+import api from "../Services/api";
 import { deriveInvoiceStatus, statusColor, toTitleCase } from "../utils/invoiceStatus";
 import { generateInvoicePDF } from "../utils/invoicePdf";
 import InvoiceDetailsDialog from "./InvoiceDetailsDialog";
@@ -61,7 +61,7 @@ function CustomerInvoicePortal() {
       }
 
       setLoading(true);
-      const [customersData, invoicesData] = await Promise.all([getAllCustomers(), getAllInvoice()]);
+      const [customersData, invoicesData] = await Promise.all([api.getCustomers(), api.getInvoices()]);
       const customers = Array.isArray(customersData) ? customersData : [];
       const allInvoices = Array.isArray(invoicesData) ? invoicesData : [];
 
